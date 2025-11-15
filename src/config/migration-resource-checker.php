@@ -82,6 +82,9 @@ return [
     'column_type_mappings' => [
         'id' => 'int',
         'int' => 'int',
+        'int2' => 'int',
+        'int4' => 'int',
+        'int8' => 'int',
         'bigint' => 'int',
         'bigIncrements' => 'int',
         'increments' => 'int',
@@ -115,16 +118,20 @@ return [
         'rememberToken' => 'string',
 
         'binary' => 'resource',
+        'bytea' => 'resource',
 
         'tinyint' => 'bool',
+        'bool' => 'bool',
         'boolean' => 'bool',
 
         'decimal' => 'float',
         'float' => 'float',
+        'float8' => 'float',
         'double' => 'float',
 
         'timestamp' => 'Carbon',
         'timestampTz' => 'Carbon',
+        'timestamptz' => 'Carbon',
         'date' => 'Carbon',
         'dateTime' => 'Carbon',
         'dateTimeTz' => 'Carbon',
