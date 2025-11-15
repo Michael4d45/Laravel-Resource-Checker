@@ -7,6 +7,8 @@ namespace Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsRes
 use Closure;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\AstHelper;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\AnalysisResultDto;
+use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\FieldDto;
+use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\FieldTable;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\ResourceReportDto;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
