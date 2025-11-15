@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes;
 
+use Illuminate\Console\Command;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\AnalysisResultDto;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\FieldTable;
-use Illuminate\Console\Command;
 
 class FixMissingPropertiesPipe extends BaseFixerPipe
 {

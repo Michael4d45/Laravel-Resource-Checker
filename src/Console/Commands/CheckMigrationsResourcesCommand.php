@@ -80,7 +80,10 @@ class CheckMigrationsResourcesCommand extends Command
         $json = json_encode($fullOutput, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         /** @var false|string $outputPathRaw */
         $outputPathRaw = $this->option('output');
-        $outputPath = is_string($outputPathRaw) ? $outputPathRaw : base_path(config('migration-resource-checker.output_path', 'reports/migration_resource_report.json'));
+        $defaultPath = 'reports/migration_resource_report.json';
+        $configValue = config('migration-resource-checker.output_path');
+        $configPath = is_string($configValue) ? $configValue : $defaultPath;
+        $outputPath = is_string($outputPathRaw) ? $outputPathRaw : base_path($configPath);
         if (! is_dir(dirname($outputPath))) {
             @mkdir(dirname($outputPath), 0755, true);
         }

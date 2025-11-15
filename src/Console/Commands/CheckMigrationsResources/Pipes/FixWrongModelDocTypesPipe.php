@@ -93,7 +93,7 @@ class FixWrongModelDocTypesPipe extends BaseFixerPipe
         }
 
         $docText = $existingDoc->getText();
-        $docLines = explode("\n", $docLines);
+        $docLines = explode("\n", $docText);
 
         $updated = false;
         foreach ($docLines as &$line) {

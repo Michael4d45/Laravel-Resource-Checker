@@ -151,8 +151,6 @@ class ParseMigrationsPipe
             $migrationTables[$tableName] = new FieldTable($columnInfos);
         }
 
-        $dto->migrations = $migrationTables;
-
         $resources = $dto->resources;
         foreach ($migrationTables as $table => $fields) {
             $resourceReport = $resources[$table] ?? new ResourceReportDto;
@@ -168,7 +166,7 @@ class ParseMigrationsPipe
     {
         $methodName = $mc->name instanceof Identifier ? $mc->name->toString() : null;
 
-        $mappings = config()->array('check-migrations-resources.column_type_mappings', []);
+        $mappings = config()->array('migration-resource-checker.column_type_mappings', []);
         $type = $mappings[$methodName] ?? null;
 
         if (! (is_string($type) || $type === null)) {
@@ -210,7 +208,7 @@ class ParseMigrationsPipe
 
     private function getColumnName(MethodCall $mc): string|null
     {
-        $mappings = config()->array('check-migrations-resources.column_type_mappings', []);
+        $mappings = config()->array('migration-resource-checker.column_type_mappings', []);
         $columnMethods = array_keys($mappings);
 
         $current = $mc;

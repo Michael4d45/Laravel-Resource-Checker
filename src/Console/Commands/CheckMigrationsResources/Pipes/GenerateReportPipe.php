@@ -29,7 +29,7 @@ class GenerateReportPipe
     public function __invoke(AnalysisResultDto $dto, \Closure $next): AnalysisResultDto
     {
         // Base tables ignored across all components
-        $ignoredTablesConfig = config()->array('check-migrations-resources.ignored_tables', []);
+        $ignoredTablesConfig = config()->array('migration-resource-checker.ignored_tables', []);
 
         // Extract ignored tables for each component
         /** @var array<string, array<string>> $ignoredTablesConfig */
@@ -38,7 +38,7 @@ class GenerateReportPipe
         $this->ignoreForPhpDoc = $this->getIgnoredTablesForComponent($ignoredTablesConfig, 'phpdoc');
 
         // Extract ignored fields for each component
-        $ignoredFieldsConfig = config()->array('check-migrations-resources.ignored_fields', []);
+        $ignoredFieldsConfig = config()->array('migration-resource-checker.ignored_fields', []);
         /** @var array<string, array<string>> $ignoredFieldsConfig */
         $this->ignoreFieldsForModels = $this->getIgnoredFieldsForComponent($ignoredFieldsConfig, 'models');
 
@@ -152,11 +152,11 @@ class GenerateReportPipe
     private function addFilamentResources(AnalysisResultDto $dto): array
     {
         $result = [];
-        foreach ($dto->migrations as $table => $migration) {
+        foreach ($dto->resources as $table => $resourceReport) {
             if (in_array($table, $this->ignoreForResources)) {
                 continue;
             }
-            if (! isset($dto->resources[$table])) {
+            if ($resourceReport->filamentFormFields->isEmpty()) {
                 $result[] = $table;
             }
         }

@@ -43,7 +43,7 @@ class ParseFilamentFormsPipe
             }
         }
         $formComponentClassNames = $this->normalizeComponentReferences(
-            config()->array('check-migrations-resources.form_component_classes', [])
+            config()->array('migration-resource-checker.form_component_classes', [])
         );
 
         $resourceFields = [];
@@ -125,7 +125,7 @@ class ParseFilamentFormsPipe
                     $staticMakes = $finder->find($ast, function (Node $n) use ($formComponentClassNames) {
                         return $n instanceof StaticCall
                             && $n->class instanceof Name
-                            && $this->isFormComponentClass($n->class, $formComponentClassNames)
+                            && in_array(ltrim($n->class->toString(), '\\'), $formComponentClassNames, true)
                             && $n->name instanceof Identifier
                             && $n->name->toString() === 'make'
                             && isset($n->args[0])
@@ -186,19 +186,6 @@ class ParseFilamentFormsPipe
         }
 
         return array_values(array_unique($normalized));
-    }
-
-    private function isFormComponentClass(Name $class, array $formComponentClassNames): bool
-    {
-        $className = ltrim($class->toString(), '\\');
-        foreach ($formComponentClassNames as $prefix) {
-            $prefix = rtrim($prefix, '\\');
-            if (str_starts_with($className, $prefix . '\\') || $className === $prefix) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -264,7 +251,7 @@ class ParseFilamentFormsPipe
         if ($resolved === null) {
             return 'string';
         }
-        $typeMap = config()->array('check-migrations-resources.resource_component_type_map', []);
+        $typeMap = config()->array('migration-resource-checker.resource_component_type_map', []);
 
         $type = $typeMap[$resolved] ?? null;
         if (! is_string($type)) {
@@ -290,7 +277,7 @@ class ParseFilamentFormsPipe
 
     private function hasRequiredModifier(StaticCall $componentCall): bool
     {
-        $requiredMethods = config()->array('check-migrations-resources.resource_component_required_methods', []);
+        $requiredMethods = config()->array('migration-resource-checker.resource_component_required_methods', []);
         $current = $componentCall->getAttribute('parent');
 
         while ($current instanceof MethodCall) {

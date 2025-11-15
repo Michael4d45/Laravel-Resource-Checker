@@ -207,15 +207,15 @@ class FixAddFieldsToResourcesPipe
     private function createComponentDefinition(string $field, string $dbType, bool $isNullable, string $code): string
     {
         $normalizedType = strtolower($dbType);
-        $componentFqn = (string) config()->string('check-migrations-resources.resource_component_default', '\\Filament\\Forms\\Components\\TextInput');
-        $componentMap = config()->array('check-migrations-resources.resource_component_mappings', []);
+        $componentFqn = (string) config()->string('migration-resource-checker.resource_component_default', '\\Filament\\Forms\\Components\\TextInput');
+        $componentMap = config()->array('migration-resource-checker.resource_component_mappings', []);
         if (isset($componentMap[$normalizedType]) && is_string($componentMap[$normalizedType])) {
             $componentFqn = (string) $componentMap[$normalizedType];
         }
 
         $componentFqn = '\\' . ltrim($componentFqn, '\\');
 
-        $numericTypes = config()->array('check-migrations-resources.resource_numeric_types', ['int', 'integer']);
+        $numericTypes = config()->array('migration-resource-checker.resource_numeric_types', ['int', 'integer']);
         $isNumeric = in_array($normalizedType, $numericTypes, true);
 
         $componentReference = $this->resolveComponentReference($componentFqn, $code);
