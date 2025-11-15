@@ -1,0 +1,32 @@
+{
+    "name": "michael4d45/laravel-resource-checker",
+    "description": "A Laravel package to check migrations against Filament resources and models",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Michael4d45",
+            "email": "your-email@example.com"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "illuminate/support": "^10.0|^11.0",
+        "illuminate/console": "^10.0|^11.0",
+        "nikic/php-parser": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Michael4d45\\LaravelResourceChecker\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Michael4d45\\LaravelResourceChecker\\Providers\\LaravelResourceCheckerServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
