@@ -81,6 +81,8 @@ return [
     */
     'column_type_mappings' => [
         'id' => 'int',
+        'int' => 'int',
+        'bigint' => 'int',
         'bigIncrements' => 'int',
         'increments' => 'int',
         'smallIncrements' => 'int',
@@ -104,7 +106,9 @@ return [
         'varchar' => 'string',
         'text' => 'string',
         'mediumText' => 'string',
+        'mediumtext' => 'string',
         'longText' => 'string',
+        'longtext' => 'string',
         'enum' => 'string',
         'uuid' => 'string',
         'foreignUuid' => 'string',
@@ -112,6 +116,7 @@ return [
 
         'binary' => 'resource',
 
+        'tinyint' => 'bool',
         'boolean' => 'bool',
 
         'decimal' => 'float',
