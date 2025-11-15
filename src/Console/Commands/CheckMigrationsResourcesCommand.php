@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Michael4d45\LaravelResourceChecker\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Pipeline;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\AnalysisResultDto;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\FixAddFieldsToModelDocsPipe;
@@ -17,6 +18,7 @@ use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\ParseFilamentFormsPipe;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\ParseMigrationsPipe;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\ParseModelsPipe;
+use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\ReadDatabasePipe;
 
 class CheckMigrationsResourcesCommand extends Command
 {
@@ -35,11 +37,19 @@ class CheckMigrationsResourcesCommand extends Command
     {
         $this->info('Comparing Filament resources and models against migrations using AST parsing...');
 
+        // Check if database connection is available
+        try {
+            DB::connection()->getPdo();
+            $connected = true;
+        } catch (\Throwable $e) {
+            $connected = false;
+        }
+
         $pipes = [
-            new ParseMigrationsPipe,
-            new ParseFilamentFormsPipe,
-            new ParseModelsPipe,
-            new GenerateReportPipe,
+            $connected ? ReadDatabasePipe::class : ParseMigrationsPipe::class,
+            ParseFilamentFormsPipe::class,
+            ParseModelsPipe::class,
+            GenerateReportPipe::class,
         ];
 
         if ($this->option('fix-missing-properties')) {
