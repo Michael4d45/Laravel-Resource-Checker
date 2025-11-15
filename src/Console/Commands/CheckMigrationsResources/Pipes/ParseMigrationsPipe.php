@@ -118,6 +118,34 @@ class ParseMigrationsPipe
                                             $tables[$tableName][] = 'deleted_at';
                                             $columnTypes[$tableName]['deleted_at'] = 'Carbon';
                                             $columnNullable[$tableName]['deleted_at'] = true;
+                                        } elseif ($methodName === 'id') {
+                                            $tables[$tableName][] = 'id';
+                                            $columnTypes[$tableName]['id'] = 'int';
+                                            $columnNullable[$tableName]['id'] = false;
+                                        } elseif ($methodName === 'morphs') {
+                                            if (! empty($methodCall->args) && $methodCall->args[0] instanceof Node\Arg && $methodCall->args[0]->value instanceof Node\Scalar\String_) {
+                                                $baseName = $methodCall->args[0]->value->value;
+                                                $typeColumn = $baseName . '_type';
+                                                $idColumn = $baseName . '_id';
+                                                $tables[$tableName][] = $typeColumn;
+                                                $columnTypes[$tableName][$typeColumn] = 'string';
+                                                $columnNullable[$tableName][$typeColumn] = $this->isColumnNullable($methodCall);
+                                                $tables[$tableName][] = $idColumn;
+                                                $columnTypes[$tableName][$idColumn] = 'int';
+                                                $columnNullable[$tableName][$idColumn] = $this->isColumnNullable($methodCall);
+                                            }
+                                        } elseif ($methodName === 'nullableMorphs') {
+                                            if (! empty($methodCall->args) && $methodCall->args[0] instanceof Node\Arg && $methodCall->args[0]->value instanceof Node\Scalar\String_) {
+                                                $baseName = $methodCall->args[0]->value->value;
+                                                $typeColumn = $baseName . '_type';
+                                                $idColumn = $baseName . '_id';
+                                                $tables[$tableName][] = $typeColumn;
+                                                $columnTypes[$tableName][$typeColumn] = 'string';
+                                                $columnNullable[$tableName][$typeColumn] = true;
+                                                $tables[$tableName][] = $idColumn;
+                                                $columnTypes[$tableName][$idColumn] = 'int';
+                                                $columnNullable[$tableName][$idColumn] = true;
+                                            }
                                         }
                                     } else {
                                         $tables[$tableName][] = $columnName;

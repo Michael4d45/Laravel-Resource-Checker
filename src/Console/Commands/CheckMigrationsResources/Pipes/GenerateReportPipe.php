@@ -339,24 +339,19 @@ class GenerateReportPipe
 
     private function getExpectedPhpDocType(string $migrationType): string
     {
-        return match ($migrationType) {
-            'Carbon' => 'Illuminate\\Support\\Carbon',
-            'Point' => 'Clickbar\\Magellan\\Data\\Geometries\\Point',
-            'Box2D' => 'Clickbar\\Magellan\\Data\\Boxes\\Box2D',
-            default => $migrationType,
-        };
+        $normalizations = config()->array('migration-resource-checker.type_normalizations', []);
+        $expectedType = $normalizations[$migrationType] ?? $migrationType;
+        assert(is_string($expectedType));
+
+        return $expectedType;
     }
 
     private function getExpectedPhpDocTypeFromCast(string $cast): string
     {
-        return match ($cast) {
-            'datetime', 'timestamp' => 'Illuminate\\Support\\Carbon',
-            'json' => 'array',
-            'boolean' => 'bool',
-            'integer' => 'int',
-            'hashed' => 'string', // probably
-            default => $cast,
-        };
+        $castMappings = config()->array('migration-resource-checker.cast_type_mappings', []);
+        $expectedType = $castMappings[$cast] ?? $cast;
+        assert(is_string($expectedType));
+        return $expectedType;
     }
 
     /**

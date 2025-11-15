@@ -142,10 +142,28 @@ return [
     */
     'type_normalizations' => [
         'Carbon' => '\\Illuminate\\Support\\Carbon',
-        // 'Point' => '\\Clickbar\\Magellan\\Data\\Geometries\\Point',
-        // 'Box2D' => '\\Clickbar\\Magellan\\Data\\Boxes\\Box2D',
+        'Point' => '\\Clickbar\\Magellan\\Data\\Geometries\\Point',
+        'Box2D' => '\\Clickbar\\Magellan\\Data\\Boxes\\Box2D',
         // 'Vector' => '\\Pgvector\\Laravel\\Vector',
         // Add more normalizations as needed
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cast Type Mappings
+    |--------------------------------------------------------------------------
+    |
+    | Maps Eloquent cast names to their expected PHPDoc types.
+    |
+    */
+    'cast_type_mappings' => [
+        'datetime' => '\\Illuminate\\Support\\Carbon',
+        'timestamp' => '\\Illuminate\\Support\\Carbon',
+        'json' => 'array',
+        'boolean' => 'bool',
+        'integer' => 'int',
+        'hashed' => 'string',
+        // Add more cast mappings as needed
     ],
 
     /*
@@ -174,23 +192,6 @@ return [
         'Forms\\Components\\ColorPicker',
         // 'App\\Filament\\Fields\\MapField',
         // 'App\\Filament\\Fields\\MapBboxField',
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Table Column Classes
-    |--------------------------------------------------------------------------
-    |
-    | Filament table column classes to look for when parsing resources.
-    |
-    */
-    'table_column_classes' => [
-        'Tables\\Columns',
-        'Tables\\Columns\\TextColumn',
-        'Tables\\Columns\\ImageColumn',
-        'Tables\\Columns\\BooleanColumn',
-        'Tables\\Columns\\SelectColumn',
-        'Tables\\Columns\\DateTimeColumn',
     ],
 
     /*
