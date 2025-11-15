@@ -343,6 +343,8 @@ class GenerateReportPipe
         $expectedType = $normalizations[$migrationType] ?? $migrationType;
         assert(is_string($expectedType));
 
+        $expectedType = ltrim($expectedType, '\\');
+
         return $expectedType;
     }
 
@@ -351,6 +353,9 @@ class GenerateReportPipe
         $castMappings = config()->array('migration-resource-checker.cast_type_mappings', []);
         $expectedType = $castMappings[$cast] ?? $cast;
         assert(is_string($expectedType));
+
+        $expectedType = ltrim($expectedType, '\\');
+
         return $expectedType;
     }
 

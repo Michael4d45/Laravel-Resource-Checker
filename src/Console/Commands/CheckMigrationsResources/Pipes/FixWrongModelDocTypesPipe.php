@@ -50,11 +50,6 @@ class FixWrongModelDocTypesPipe extends BaseFixerPipe
                     $expectedType = $wrongTypeDto->expectedType;
                     $expectedNullable = $wrongTypeDto->expectedNullable;
 
-                    // Add leading backslash for fully qualified class names
-                    if (str_contains($expectedType, '\\')) {
-                        $expectedType = '\\' . $expectedType;
-                    }
-
                     // Add nullable suffix using union style (Type|null)
                     if ($expectedNullable) {
                         $expectedType .= '|null';
@@ -105,11 +100,6 @@ class FixWrongModelDocTypesPipe extends BaseFixerPipe
                 if (isset($fieldTypes[$fieldName])) {
                     $expectedType = $fieldTypes[$fieldName]->expectedType;
                     $expectedNullable = $fieldTypes[$fieldName]->expectedNullable;
-
-                    // Add leading backslash for fully qualified class names
-                    if (str_contains($expectedType, '\\')) {
-                        $expectedType = '\\' . $expectedType;
-                    }
 
                     // Add nullable suffix using union style (Type|null)
                     if ($expectedNullable) {
