@@ -137,6 +137,18 @@ class ParseMigrationsPipe
             $tables[$k] = array_values(array_unique($v));
         }
 
+        // Create MigrationTable instances for each table
+        $migrationTables = [];
+        foreach ($tables as $tableName => $columns) {
+            $columnInfos = [];
+            foreach ($columns as $columnName) {
+                $type = $columnTypes[$tableName][$columnName] ?? 'mixed';
+                $nullable = $columnNullable[$tableName][$columnName] ?? false;
+                $columnInfos[$columnName] = new FieldDto($columnName, $type, $nullable);
+            }
+            $migrationTables[$tableName] = new FieldTable($columnInfos);
+        }
+
         $dto->migrations = $migrationTables;
 
         $resources = $dto->resources;
