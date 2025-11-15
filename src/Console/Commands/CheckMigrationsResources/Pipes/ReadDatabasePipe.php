@@ -48,26 +48,10 @@ class ReadDatabasePipe
 
     private function mapDoctrineTypeToLaravel(string $doctrineType): string
     {
-        // Map Doctrine types to Laravel migration types
-        $mappings = [
-            'string' => 'string',
-            'text' => 'text',
-            'integer' => 'int',
-            'bigint' => 'bigint',
-            'smallint' => 'smallint',
-            'boolean' => 'boolean',
-            'decimal' => 'decimal',
-            'float' => 'float',
-            'double' => 'double',
-            'datetime' => 'datetime',
-            'date' => 'date',
-            'time' => 'time',
-            'timestamp' => 'timestamp',
-            'json' => 'json',
-            'binary' => 'binary',
-            'uuid' => 'uuid',
-        ];
+        $mappings = config()->array('migration-resource-checker.column_type_mappings', []);
 
-        return $mappings[$doctrineType] ?? 'mixed';
+        $value = $mappings[$doctrineType] ?? null;
+
+        return is_string($value) ? $value : 'mixed';
     }
 }

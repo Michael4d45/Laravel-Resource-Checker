@@ -101,6 +101,7 @@ return [
 
         'string' => 'string',
         'char' => 'string',
+        'varchar' => 'string',
         'text' => 'string',
         'mediumText' => 'string',
         'longText' => 'string',
