@@ -320,7 +320,9 @@ class GenerateReportPipe
                     $expectedNullable = $migrationDto->nullable;
 
                     $effectiveActualType = $phpDocDto->type;
-                    if ($phpDocDto->type === 'mixed' && $cast === 'array') {
+                    if ($phpDocDto->arrayType === 'array') {
+                        $effectiveActualType = 'array';
+                    } elseif ($phpDocDto->type === 'mixed' && $cast === 'array') {
                         $effectiveActualType = 'array';
                     }
 
