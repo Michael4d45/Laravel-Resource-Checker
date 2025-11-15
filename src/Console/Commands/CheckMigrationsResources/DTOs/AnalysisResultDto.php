@@ -10,11 +10,13 @@ class AnalysisResultDto
      * @param  array<string, string>  $modelFilePaths
      * @param  array<string, string>  $filamentResourceModelMap
      * @param  array<string, ResourceReportDto>  $resources
+     * @param  array<string, FieldTable>  $migrations
      */
     public function __construct(
         public ReportDto $report,
         public array $modelFilePaths = [],
         public array $filamentResourceModelMap = [],
         public array $resources = [],
+        public array $migrations = [],
     ) {}
 }

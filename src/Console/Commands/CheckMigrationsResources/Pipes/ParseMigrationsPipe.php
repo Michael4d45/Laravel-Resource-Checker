@@ -7,8 +7,6 @@ namespace Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsRes
 use Closure;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\AstHelper;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\AnalysisResultDto;
-use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\FieldDto;
-use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\FieldTable;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\ResourceReportDto;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
@@ -139,17 +137,7 @@ class ParseMigrationsPipe
             $tables[$k] = array_values(array_unique($v));
         }
 
-        // Create MigrationTable instances for each table
-        $migrationTables = [];
-        foreach ($tables as $tableName => $columns) {
-            $columnInfos = [];
-            foreach ($columns as $columnName) {
-                $type = $columnTypes[$tableName][$columnName] ?? 'mixed';
-                $nullable = $columnNullable[$tableName][$columnName] ?? false;
-                $columnInfos[$columnName] = new FieldDto($columnName, $type, $nullable);
-            }
-            $migrationTables[$tableName] = new FieldTable($columnInfos);
-        }
+        $dto->migrations = $migrationTables;
 
         $resources = $dto->resources;
         foreach ($migrationTables as $table => $fields) {
