@@ -18,7 +18,13 @@ class ReadDatabasePipe
 
         $migrationTables = [];
         foreach ($tables as $tableName) {
-            $columns = Schema::getColumns($tableName);
+            // Strip database name if present (e.g., "database.table" -> "table")
+            $cleanTableName = $tableName;
+            if (str_contains($tableName, '.')) {
+                $parts = explode('.', $tableName);
+                $cleanTableName = end($parts);
+            }
+            $columns = Schema::getColumns($cleanTableName);
             $columnInfos = [];
             foreach ($columns as $column) {
                 $name = $column['name'];
@@ -26,7 +32,7 @@ class ReadDatabasePipe
                 $nullable = $column['nullable'];
                 $columnInfos[$name] = new FieldDto($name, $type, $nullable);
             }
-            $migrationTables[$tableName] = new FieldTable($columnInfos);
+            $migrationTables[$cleanTableName] = new FieldTable($columnInfos);
         }
 
         $resources = $dto->resources;
