@@ -152,11 +152,11 @@ class GenerateReportPipe
     private function addFilamentResources(AnalysisResultDto $dto): array
     {
         $result = [];
-        foreach ($dto->resources as $table => $resourceReport) {
+        foreach ($dto->migrations as $table => $migration) {
             if (in_array($table, $this->ignoreForResources)) {
                 continue;
             }
-            if ($resourceReport->filamentFormFields->isEmpty()) {
+            if (! isset($dto->resources[$table])) {
                 $result[] = $table;
             }
         }
