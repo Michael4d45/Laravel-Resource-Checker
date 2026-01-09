@@ -125,7 +125,7 @@ class ParseFilamentFormsPipe
                     $staticMakes = $finder->find($ast, function (Node $n) use ($formComponentClassNames) {
                         return $n instanceof StaticCall
                             && $n->class instanceof Name
-                            && in_array($n->class->toString(), $formComponentClassNames, true)
+                            && in_array(ltrim($n->class->toString(), '\\'), $formComponentClassNames, true)
                             && $n->name instanceof Identifier
                             && $n->name->toString() === 'make'
                             && isset($n->args[0])
@@ -179,9 +179,10 @@ class ParseFilamentFormsPipe
                 continue;
             }
 
-            $normalized[] = $class;
+            $trimmed = ltrim($class, '\\');
+            $normalized[] = $trimmed;
 
-            $normalized[] = basename(str_replace('\\', '/', $class));
+            $normalized[] = basename(str_replace('\\', '/', $trimmed));
         }
 
         return array_values(array_unique($normalized));
@@ -251,7 +252,12 @@ class ParseFilamentFormsPipe
             return 'string';
         }
         $typeMap = config()->array('migration-resource-checker.resource_component_type_map', []);
+
         $type = $typeMap[$resolved] ?? null;
+        if (! is_string($type)) {
+            $shortName = basename(str_replace('\\', '/', $resolved));
+            $type = $typeMap[$shortName] ?? null;
+        }
 
         if (is_string($type)) {
             return $type;
@@ -263,7 +269,7 @@ class ParseFilamentFormsPipe
     private function resolveComponentClassName(Node $componentClass): string|null
     {
         if ($componentClass instanceof Name) {
-            return $componentClass->toString();
+            return ltrim($componentClass->toString(), '\\');
         }
 
         return null;

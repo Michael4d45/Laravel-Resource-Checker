@@ -37,6 +37,13 @@ class CheckMigrationsResourcesCommand extends Command
     {
         $this->info('Comparing Filament resources and models against migrations using AST parsing...');
 
+        $enabledSections = config('migration-resource-checker.enabled_sections', [
+            'migrations' => true,
+            'resources' => true,
+            'models' => true,
+            'report' => true,
+        ]);
+
         // Check if database connection is available
         try {
             DB::connection()->getPdo();
@@ -45,12 +52,27 @@ class CheckMigrationsResourcesCommand extends Command
             $connected = false;
         }
 
-        $pipes = [
-            $connected ? ReadDatabasePipe::class : ParseMigrationsPipe::class,
-            ParseFilamentFormsPipe::class,
-            ParseModelsPipe::class,
-            GenerateReportPipe::class,
-        ];
+        $pipes = [];
+
+        // Add migration/database parsing pipe
+        if ($enabledSections['migrations'] ?? true) {
+            $pipes[] = $connected ? ReadDatabasePipe::class : ParseMigrationsPipe::class;
+        }
+
+        // Add resource parsing pipe
+        if ($enabledSections['resources'] ?? true) {
+            $pipes[] = ParseFilamentFormsPipe::class;
+        }
+
+        // Add model parsing pipe
+        if ($enabledSections['models'] ?? true) {
+            $pipes[] = ParseModelsPipe::class;
+        }
+
+        // Add report generation pipe
+        if ($enabledSections['report'] ?? true) {
+            $pipes[] = GenerateReportPipe::class;
+        }
 
         if ($this->option('fix-missing-properties')) {
             $pipes[] = new FixMissingPropertiesPipe($this);

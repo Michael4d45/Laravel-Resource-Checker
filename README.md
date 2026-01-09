@@ -40,13 +40,31 @@ php artisan check:migrations-resources
 
 ## Configuration
 
-You can publish the config file to customize the default output path:
+You can publish the config file to customize the default output path and enable/disable specific checking sections:
 
 ```bash
 php artisan vendor:publish --provider="Michael4d45\LaravelResourceChecker\Providers\LaravelResourceCheckerServiceProvider" --tag=config
 ```
 
 This will copy the config file to `config/migration-resource-checker.php` where you can modify settings.
+
+### Section Configuration
+
+You can enable or disable specific sections of the checking process:
+
+```php
+'enabled_sections' => [
+    'migrations' => true,    // Parse migrations/database schema
+    'resources' => true,    // Parse Filament resources
+    'models' => true,       // Parse model files and PHPDoc
+    'report' => true,       // Generate JSON report
+],
+```
+
+This allows you to:
+- Focus on specific areas (e.g., only check migrations and models)
+- Skip sections that are not relevant to your project
+- Speed up execution by disabling unnecessary checks
 
 ## License
 

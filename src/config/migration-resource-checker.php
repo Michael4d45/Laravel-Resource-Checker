@@ -5,6 +5,23 @@ declare(strict_types=1);
 return [
     /*
     |--------------------------------------------------------------------------
+    | Enabled Sections
+    |--------------------------------------------------------------------------
+    |
+    | Enable or disable different sections of the checking/reporting process.
+    | This allows you to focus on specific areas or skip sections that are
+    | not relevant to your project.
+    |
+    */
+    'enabled_sections' => [
+        'migrations' => true,    // Parse migrations/database schema
+        'resources' => true,    // Parse Filament resources
+        'models' => true,       // Parse model files and PHPDoc
+        'report' => true,       // Generate JSON report
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Default Output Path
     |--------------------------------------------------------------------------
     |
