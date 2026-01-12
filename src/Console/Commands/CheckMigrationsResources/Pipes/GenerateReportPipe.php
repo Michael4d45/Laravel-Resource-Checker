@@ -324,6 +324,11 @@ class GenerateReportPipe
                         $effectiveActualType = 'array';
                     }
 
+                    // Handle array types in PHPDoc (e.g., array<string, string>, Collection<Type>)
+                    if ($expectedType === 'array' && ($phpDocDto->arrayType === 'array' || $phpDocDto->arrayType === 'Collection')) {
+                        $effectiveActualType = 'array';
+                    }
+
                     if ($effectiveActualType !== $expectedType || $phpDocDto->nullable !== $expectedNullable) {
                         $wrong[$fieldName] = new WrongTypeDto($fieldName, $expectedType, $effectiveActualType, $expectedNullable, $phpDocDto->nullable);
                     }
