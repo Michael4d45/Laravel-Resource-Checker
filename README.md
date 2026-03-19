@@ -23,6 +23,7 @@ php artisan check:migrations-resources
 ### Options
 
 - `--output=`: Specify an output path for the JSON report (default: as configured in `config/migration-resource-checker.php`, or `reports/migration_resource_report.json`)
+- `--json-only`: Only output the report JSON to stdout (useful for piping into `jq`)
 - `--fix-missing-properties`: Automatically add missing @property annotations to model PHPDoc
 - `--fix-missing-property-read`: Automatically add missing @property-read annotations for relationships to model PHPDoc
 - `--fix-wrong-property-read`: Automatically fix wrong @property-read property names to snake_case
@@ -62,6 +63,7 @@ You can enable or disable specific sections of the checking process:
 ```
 
 This allows you to:
+
 - Focus on specific areas (e.g., only check migrations and models)
 - Skip sections that are not relevant to your project
 - Speed up execution by disabling unnecessary checks

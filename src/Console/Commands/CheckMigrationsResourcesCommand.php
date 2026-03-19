@@ -14,6 +14,7 @@ use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\FixMissingPropertyReadPipe;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\FixWrongModelDocTypesPipe;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\FixWrongPropertyReadPipe;
+use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\GenerateActionableCliReportPipe;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\GenerateReportPipe;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\ParseFilamentFormsPipe;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\ParseMigrationsPipe;
@@ -25,6 +26,7 @@ class CheckMigrationsResourcesCommand extends Command
     protected $signature =
         'check:migrations-resources '
             . '{--output= : Output path for JSON report} '
+            . '{--json-only : Only output report JSON to stdout (for piping to jq)} '
             . '{--fix-missing-properties : Automatically add missing @property annotations to model PHPDoc} '
             . '{--fix-missing-property-read : Automatically add missing @property-read annotations for relationships to model PHPDoc} '
             . '{--fix-wrong-property-read : Automatically fix wrong @property-read property names to snake_case}'
@@ -36,9 +38,13 @@ class CheckMigrationsResourcesCommand extends Command
 
     public function handle(): int
     {
-        $this->info(
-            'Comparing Filament resources and models against migrations using AST parsing...',
-        );
+        $jsonOnly = (bool) $this->option('json-only');
+
+        if (!$jsonOnly) {
+            $this->info(
+                'Comparing Filament resources and models against migrations using AST parsing...',
+            );
+        }
 
         $enabledSections = config('migration-resource-checker.enabled_sections', [
             'migrations' => true,
@@ -81,6 +87,7 @@ class CheckMigrationsResourcesCommand extends Command
         // Add report generation pipe
         if ($runReport) {
             $pipes[] = GenerateReportPipe::class;
+            $pipes[] = GenerateActionableCliReportPipe::class;
         }
 
         if ($this->option('fix-missing-properties')) {
@@ -138,17 +145,23 @@ class CheckMigrationsResourcesCommand extends Command
         }
         file_put_contents($outputPath, $json . PHP_EOL);
 
-        $this->info('Report written to: ' . $outputPath);
-        $actionableJson = json_encode($report, JSON_PRETTY_PRINT);
+        $actionableReport = $dto->actionableReport;
+        $actionableJson = json_encode($actionableReport, JSON_PRETTY_PRINT);
         if (is_string($actionableJson)) {
+            if (!$jsonOnly) {
+                $this->info('Report written to: ' . $outputPath);
+            }
+
             $this->line($actionableJson);
         }
 
         return self::SUCCESS;
     }
 
-    private function sectionEnabled(mixed $enabledSections, string $section): bool
-    {
+    private function sectionEnabled(
+        mixed $enabledSections,
+        string $section,
+    ): bool {
         if (!is_array($enabledSections)) {
             return true;
         }

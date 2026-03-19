@@ -26,6 +26,9 @@ class GenerateReportPipe
     /** @var array<string> */
     private array $ignoreFieldsForModels = [];
 
+    /** @var array<string> */
+    private array $ignoreFieldsForResources = [];
+
     public function __invoke(
         AnalysisResultDto $dto,
         \Closure $next,
@@ -51,6 +54,10 @@ class GenerateReportPipe
         // Extract ignored fields for each component
         $ignoredFieldsConfig = config()->array('migration-resource-checker.ignored_fields', []);
         /** @var array<string, array<string>> $ignoredFieldsConfig */
+        $this->ignoreFieldsForResources = $this->getIgnoredFieldsForComponent(
+            $ignoredFieldsConfig,
+            'resources',
+        );
         $this->ignoreFieldsForModels = $this->getIgnoredFieldsForComponent(
             $ignoredFieldsConfig,
             'models',
@@ -77,6 +84,8 @@ class GenerateReportPipe
                 $dto,
             ),
             addPropertyRead: $this->addPropertyRead($dto),
+            morphToRelationships: $this->morphToRelationships($dto),
+            modelEvidenceConflicts: $this->modelEvidenceConflicts($dto),
         );
 
         return $next($dto);
@@ -138,6 +147,14 @@ class GenerateReportPipe
             }
             $toAdd = new FieldTable;
             foreach ($resourceReport->migrationFields as $fieldName => $fieldDto) {
+                if (in_array(
+                    $fieldName,
+                    $this->ignoreFieldsForResources,
+                    true,
+                )) {
+                    continue;
+                }
+
                 if ($resourceReport->filamentFormFields->has($fieldName)) {
                     continue;
                 }
@@ -164,6 +181,14 @@ class GenerateReportPipe
             }
             $toRemove = new FieldTable;
             foreach ($resourceReport->filamentFormFields as $fieldName => $fieldDto) {
+                if (in_array(
+                    $fieldName,
+                    $this->ignoreFieldsForResources,
+                    true,
+                )) {
+                    continue;
+                }
+
                 if ($resourceReport->migrationFields->has($fieldName)) {
                     continue;
                 }
@@ -216,9 +241,13 @@ class GenerateReportPipe
             }
             $toAdd = new FieldTable;
             foreach ($resourceReport->migrationFields as $fieldName => $fieldDto) {
+                $hasModelEvidence =
+                    $resourceReport->modelFields->has($fieldName)
+                    || $resourceReport->phpdocFields->has($fieldName);
+
                 if (
                     !(
-                        !$resourceReport->modelFields->has($fieldName)
+                        !$hasModelEvidence
                         && !in_array(
                             $fieldName,
                             $this->ignoreFieldsForModels,
@@ -251,6 +280,10 @@ class GenerateReportPipe
             }
             $toRemove = new FieldTable;
             foreach ($resourceReport->modelFields as $fieldName => $fieldDto) {
+                if ($fieldDto->accessor) {
+                    continue;
+                }
+
                 if ($resourceReport->migrationFields->has($fieldName)) {
                     continue;
                 }
@@ -433,12 +466,37 @@ class GenerateReportPipe
 
     private function getExpectedPhpDocTypeFromCast(string $cast): string
     {
-        return match ($cast) {
-            'datetime', 'timestamp' => 'Illuminate\\Support\\Carbon',
-            'json' => 'array',
-            'boolean' => 'bool',
-            'integer' => 'int',
-            'hashed' => 'string', // probably
+        $normalizedCast = strtolower(trim($cast));
+
+        if ($normalizedCast === '') {
+            return 'mixed';
+        }
+
+        [$baseCast, $castArgument] = array_pad(
+            explode(':', $normalizedCast, 2),
+            2,
+            null,
+        );
+
+        if ($baseCast === 'encrypted') {
+            return match ($castArgument) {
+                'array', 'json', 'collection' => 'array',
+                'object' => 'object',
+                default => 'string',
+            };
+        }
+
+        return match ($baseCast) {
+            'datetime',
+            'immutable_datetime',
+            'timestamp',
+            'immutable_timestamp',
+                => 'Illuminate\\Support\\Carbon',
+            'json', 'array', 'collection' => 'array',
+            'boolean', 'bool' => 'bool',
+            'integer', 'int' => 'int',
+            'real', 'float', 'double', 'decimal' => 'float',
+            'hashed' => 'string',
             default => $cast,
         };
     }
@@ -463,7 +521,30 @@ class GenerateReportPipe
                 if ($relDto === null) {
                     continue;
                 }
-                if ($phpDocDto->type !== $relDto->model) {
+
+                // morphTo is polymorphic by design, so a concrete model type cannot be
+                // reliably validated against @property-read.
+                if ($this->isPolymorphicMorphToRelationship($relDto->type)) {
+                    continue;
+                }
+
+                $matchesModel = $this->relationshipPhpDocTypeMatchesModel(
+                    $phpDocDto->type,
+                    $relDto->model,
+                );
+                $isCollectionRelationship = $this->relationshipExpectsCollection($relDto->type);
+                $rawTypeLooksLikeCollection = $this->rawPhpDocTypeIsCollection($phpDocDto->type);
+                $hasCollectionPhpDocType =
+                    in_array(
+                        $phpDocDto->arrayType,
+                        ['Collection', 'array'],
+                        true,
+                    ) || $rawTypeLooksLikeCollection;
+
+                if (
+                    !$matchesModel
+                    || $isCollectionRelationship && !$hasCollectionPhpDocType
+                ) {
                     $wrong->put(
                         $fieldName,
                         new FieldDto(
@@ -480,6 +561,95 @@ class GenerateReportPipe
         }
 
         return $result;
+    }
+
+    private function relationshipPhpDocTypeMatchesModel(
+        string $phpDocType,
+        string $relationshipModel,
+    ): bool {
+        $normalizedPhpDocType =
+            $this->extractRelationshipModelTypeFromPhpDoc($phpDocType);
+
+        if ($normalizedPhpDocType === null) {
+            return false;
+        }
+
+        $normalizedPhpDocType = ltrim(trim($normalizedPhpDocType), '\\');
+        $normalizedRelationshipModel = ltrim(trim($relationshipModel), '\\');
+
+        if ($normalizedPhpDocType === $normalizedRelationshipModel) {
+            return true;
+        }
+
+        return (
+            class_basename($normalizedPhpDocType) === class_basename(
+                $normalizedRelationshipModel,
+            )
+        );
+    }
+
+    private function extractRelationshipModelTypeFromPhpDoc(string $phpDocType): string|null
+    {
+        $normalizedPhpDocType = ltrim(trim($phpDocType), '\\');
+
+        if ($normalizedPhpDocType === '') {
+            return null;
+        }
+
+        if (
+            preg_match(
+                '/^(Collection|array)\s*<\s*([^,>]+)\s*,\s*([^>]+)\s*>$/i',
+                $normalizedPhpDocType,
+                $matches,
+            ) === 1
+        ) {
+            return trim($matches[3]);
+        }
+
+        if (
+            preg_match(
+                '/^(Collection|array)\s*<\s*([^>]+)\s*>$/i',
+                $normalizedPhpDocType,
+                $matches,
+            ) === 1
+        ) {
+            return trim($matches[2]);
+        }
+
+        if (str_ends_with($normalizedPhpDocType, '[]')) {
+            return substr($normalizedPhpDocType, 0, -2);
+        }
+
+        return $normalizedPhpDocType;
+    }
+
+    private function rawPhpDocTypeIsCollection(string $phpDocType): bool
+    {
+        return (
+            preg_match('/^(Collection|array)\s*</i', trim($phpDocType)) === 1
+            || str_ends_with(trim($phpDocType), '[]')
+        );
+    }
+
+    private function relationshipExpectsCollection(string $relationshipType): bool
+    {
+        return in_array(
+            strtolower($relationshipType),
+            [
+                'hasmany',
+                'belongstomany',
+                'morphmany',
+                'morphtomany',
+                'hasmanythrough',
+                'collection',
+            ],
+            true,
+        );
+    }
+
+    private function isPolymorphicMorphToRelationship(string $relationshipType): bool
+    {
+        return strtolower(trim($relationshipType)) === 'morphto';
     }
 
     /**
@@ -535,8 +705,124 @@ class GenerateReportPipe
                     new FieldDto($relName, $relDto->model, false),
                 );
             }
+
+            foreach ($resourceReport->modelFields as $fieldName => $fieldDto) {
+                if (!$fieldDto->accessor) {
+                    continue;
+                }
+
+                if ($resourceReport->phpdocReadFields->has($fieldName)) {
+                    continue;
+                }
+
+                $toAdd->put(
+                    $fieldName,
+                    new FieldDto(
+                        $fieldName,
+                        $fieldDto->cast ?? 'mixed',
+                        $fieldDto->nullable,
+                    ),
+                );
+            }
+
             if ($toAdd->isNotEmpty()) {
                 $result[$table] = $toAdd;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Reports discovered morphTo relationships and their @property-read coverage.
+     *
+     * @return array<string, array<string, array{relationship_type: string, has_phpdoc_read: bool, phpdoc_type: string|null, nullable: bool|null}>>
+     */
+    private function morphToRelationships(AnalysisResultDto $dto): array
+    {
+        $result = [];
+
+        foreach ($dto->resources as $table => $resourceReport) {
+            if (in_array($table, $this->ignoreForPhpDoc, true)) {
+                continue;
+            }
+
+            $morphTo = [];
+            foreach ($resourceReport->modelRelationships as $relName => $relDto) {
+                if (!$this->isPolymorphicMorphToRelationship($relDto->type)) {
+                    continue;
+                }
+
+                $phpDoc = $resourceReport->phpdocReadFields->get($relName);
+                $morphTo[$relName] = [
+                    'relationship_type' => $relDto->type,
+                    'has_phpdoc_read' => $phpDoc !== null,
+                    'phpdoc_type' => $phpDoc?->type,
+                    'nullable' => $phpDoc?->nullable,
+                ];
+            }
+
+            if (!empty($morphTo)) {
+                $result[$table] = $morphTo;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Reports type contradictions between model evidence (casts) and docblock tags,
+     * even when migration evidence is missing.
+     *
+     * @return array<string, array<string, WrongTypeDto>>
+     */
+    private function modelEvidenceConflicts(AnalysisResultDto $dto): array
+    {
+        $result = [];
+
+        foreach ($dto->resources as $table => $resourceReport) {
+            if (in_array($table, $this->ignoreForPhpDoc, true)) {
+                continue;
+            }
+
+            $conflicts = [];
+
+            foreach ($resourceReport->phpdocFields as $fieldName => $phpDocDto) {
+                $modelField = $resourceReport->modelFields->get($fieldName);
+                $cast = $modelField?->cast;
+
+                if ($cast === null || $cast === '') {
+                    continue;
+                }
+
+                $expectedType = $this->getExpectedPhpDocTypeFromCast($cast);
+                $actualType = $phpDocDto->type;
+
+                if (
+                    $expectedType === 'array'
+                    && (
+                        $phpDocDto->arrayType === 'array'
+                        || $phpDocDto->arrayType === 'Collection'
+                    )
+                ) {
+                    $actualType = 'array';
+                }
+
+                if ($expectedType === $actualType) {
+                    continue;
+                }
+
+                $conflicts[$fieldName] = new WrongTypeDto(
+                    fieldName: $fieldName,
+                    expectedType: $expectedType,
+                    actualType: $actualType,
+                    expectedNullable: $phpDocDto->nullable,
+                    actualNullable: $phpDocDto->nullable,
+                );
+            }
+
+            if (!empty($conflicts)) {
+                $result[$table] = $conflicts;
             }
         }
 

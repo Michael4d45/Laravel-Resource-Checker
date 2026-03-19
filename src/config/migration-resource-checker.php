@@ -22,6 +22,17 @@ return [
 
     /*
      |--------------------------------------------------------------------------
+     | DocBlock Enrichment
+     |--------------------------------------------------------------------------
+     |
+     | Enable structured PHPDoc parsing for model properties. This starts with
+     | the @property family and can be expanded later.
+     |
+     */
+    'docblock_enrichment' => true,
+
+    /*
+     |--------------------------------------------------------------------------
      | Default Output Path
      |--------------------------------------------------------------------------
      |
@@ -193,6 +204,21 @@ return [
         'integer' => 'int',
         'hashed' => 'string',
         // Add more cast mappings as needed
+    ],
+
+    /*
+     |--------------------------------------------------------------------------
+     | Evidence Precedence
+     |--------------------------------------------------------------------------
+     |
+     | Used when multiple sources describe the same model property. Surveyor is
+     | intended to become the primary source; docblocks fill gaps and may be
+     | compared against the analyzer for contradictions.
+     |
+     */
+    'evidence_precedence' => [
+        'model' => 'surveyor',
+        'phpdoc' => 'docblock',
     ],
 
     /*

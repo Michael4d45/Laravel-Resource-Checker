@@ -11,5 +11,7 @@ class ModelFieldDto
         public string|null $cast = null,
         public bool $fillable = false,
         public bool $hidden = false,
+        public bool $accessor = false,
+        public bool $nullable = false,
     ) {}
 }

@@ -27,6 +27,8 @@ class ReportDto implements Arrayable
      * @param  array<string, FieldTable>  $shouldBeCamelCasePhpdocProperty
      * @param  array<string, array<string, WrongRelationshipNameDto>>  $shouldBeCamelCaseRelationship
      * @param  array<string, FieldTable>  $addPropertyRead
+     * @param  array<string, array<string, array{relationship_type: string, has_phpdoc_read: bool, phpdoc_type: string|null, nullable: bool|null}>>  $morphToRelationships
+     * @param  array<string, array<string, WrongTypeDto>>  $modelEvidenceConflicts
      */
     public function __construct(
         public array $addFieldsToFilamentForm = [],
@@ -43,6 +45,8 @@ class ReportDto implements Arrayable
         public array $shouldBeCamelCasePhpdocProperty = [],
         public array $shouldBeCamelCaseRelationship = [],
         public array $addPropertyRead = [],
+        public array $morphToRelationships = [],
+        public array $modelEvidenceConflicts = [],
     ) {}
 
     /**

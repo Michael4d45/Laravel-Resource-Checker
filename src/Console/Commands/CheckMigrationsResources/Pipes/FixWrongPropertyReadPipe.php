@@ -33,7 +33,8 @@ class FixWrongPropertyReadPipe extends BaseFixerPipe
                     $docText = $existingDoc->getText();
                     $docLines = explode("\n", $docText);
                     $changed = false;
-                    $relationships = $dto->resources[$table]->modelRelationships ?? [];
+                    $relationships = $dto->resources[$table]->modelRelationships
+                    ?? [];
 
                     foreach ($docLines as &$line) {
                         if (!preg_match(

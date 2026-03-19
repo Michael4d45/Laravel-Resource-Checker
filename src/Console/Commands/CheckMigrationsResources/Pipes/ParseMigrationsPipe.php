@@ -218,12 +218,11 @@ class ParseMigrationsPipe
         $columnName = $this->getColumnName($methodCall);
         if ($columnName !== null) {
             $tables[$tableName][] = $columnName;
-            $columnTypes[$tableName][$columnName] = $this->getColumnType(
-                $this->getFirstMethodCall($methodCall),
-            );
-            $columnNullable[$tableName][$columnName] = $this->isColumnNullable(
+            $columnTypes[$tableName][$columnName] = $this->getColumnType($this->getFirstMethodCall(
                 $methodCall,
-            );
+            ));
+            $columnNullable[$tableName][$columnName] =
+                $this->isColumnNullable($methodCall);
 
             return;
         }
@@ -283,7 +282,9 @@ class ParseMigrationsPipe
 
     private function isRememberTokenMethod(string|null $methodName): bool
     {
-        return is_string($methodName) && hash_equals('rememberToken', $methodName);
+        return (
+            is_string($methodName) && hash_equals('rememberToken', $methodName)
+        );
     }
 
     private function getColumnType(MethodCall $mc): string
