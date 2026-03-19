@@ -28,30 +28,47 @@ class ParseFilamentFormsPipe
         $this->astHelper = new AstHelper;
     }
 
-    public function __invoke(AnalysisResultDto $dto, \Closure $next): AnalysisResultDto
-    {
+    public function __invoke(
+        AnalysisResultDto $dto,
+        \Closure $next,
+    ): AnalysisResultDto {
         $finder = $this->astHelper->finder();
 
-        $resourcesDir = base_path() . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Filament' . DIRECTORY_SEPARATOR . 'Resources';
+        $resourcesDir =
+            base_path()
+            . DIRECTORY_SEPARATOR
+            . 'app'
+            . DIRECTORY_SEPARATOR
+            . 'Filament'
+            . DIRECTORY_SEPARATOR
+            . 'Resources';
         $resourceFiles = [];
         if (is_dir($resourcesDir)) {
-            $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($resourcesDir));
+            $it = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($resourcesDir),
+            );
             foreach ($it as $f) {
-                if ($f instanceof \SplFileInfo && $f->isFile() && $f->getExtension() === 'php') {
-                    $resourceFiles[] = $f->getPathname();
+                if (
+                    !(
+                        $f instanceof \SplFileInfo
+                        && $f->isFile()
+                        && $f->getExtension() === 'php'
+                    )
+                ) {
+                    continue;
                 }
+
+                $resourceFiles[] = $f->getPathname();
             }
         }
-        $formComponentClassNames = $this->normalizeComponentReferences(
-            config()->array('migration-resource-checker.form_component_classes', [])
-        );
+        $formComponentClassNames = $this->normalizeComponentReferences(config()->array('migration-resource-checker.form_component_classes', []));
 
         $resourceFields = [];
         $resourceModelMap = [];
 
         foreach ($resourceFiles as $rf) {
             $rf = (string) $rf;
-            if (strpos($rf, 'RelationManagers') !== false) {
+            if (str_contains($rf, 'RelationManagers')) {
                 continue;
             }
 
@@ -75,7 +92,11 @@ class ParseFilamentFormsPipe
                         continue;
                     }
 
-                    $modelClassName = $this->resolveModelClassName($pp->default ?? null, $ast, $namespace);
+                    $modelClassName = $this->resolveModelClassName(
+                        $pp->default ?? null,
+                        $ast,
+                        $namespace,
+                    );
                     if ($modelClassName === null) {
                         continue;
                     }
@@ -90,7 +111,7 @@ class ParseFilamentFormsPipe
 
         foreach ($resourceFiles as $rf) {
             $rf = (string) $rf;
-            if (strpos($rf, 'RelationManagers') !== false) {
+            if (str_contains($rf, 'RelationManagers')) {
                 continue;
             }
 
@@ -103,7 +124,7 @@ class ParseFilamentFormsPipe
                 continue;
             }
 
-            if (! isset($resourceFields[$tableKey])) {
+            if (!array_key_exists($tableKey, $resourceFields)) {
                 $resourceFields[$tableKey] = new FieldTable;
             }
 
@@ -122,35 +143,53 @@ class ParseFilamentFormsPipe
                     $this->astHelper->attachParentReferences($ast);
 
                     /** @var array<Node> $staticMakes */
-                    $staticMakes = $finder->find($ast, function (Node $n) use ($formComponentClassNames) {
-                        return $n instanceof StaticCall
+                    $staticMakes = $finder->find($ast, function (Node $n) use (
+                        $formComponentClassNames,
+                    ) {
+                        return (
+                            $n instanceof StaticCall
                             && $n->class instanceof Name
-                            && in_array(ltrim($n->class->toString(), '\\'), $formComponentClassNames, true)
+                            && in_array(
+                                ltrim($n->class->toString(), '\\'),
+                                $formComponentClassNames,
+                                true,
+                            )
                             && $n->name instanceof Identifier
                             && $n->name->toString() === 'make'
-                            && isset($n->args[0])
+                            && array_key_exists(0, $n->args)
                             && $n->args[0] instanceof Arg
-                            && $n->args[0]->value instanceof String_;
+                            && $n->args[0]->value instanceof String_
+                        );
                     });
 
                     foreach ($staticMakes as $sm) {
-                        if (! $sm instanceof StaticCall || ! isset($sm->args[0])) {
+                        if (
+                            !$sm instanceof StaticCall
+                            || !array_key_exists(0, $sm->args)
+                        ) {
                             continue;
                         }
                         $firstArg = $sm->args[0];
-                        if (! $firstArg instanceof Arg || ! $firstArg->value instanceof String_) {
+                        if (
+                            !$firstArg instanceof Arg
+                            || !$firstArg->value instanceof String_
+                        ) {
                             continue;
                         }
                         $field = (string) $firstArg->value->value;
                         $type = $this->inferFieldTypeFromComponent($sm->class);
-                        $nullable = ! $this->hasRequiredModifier($sm);
-                        $this->storeField($resourceFields[$tableKey], $field, $type, $nullable);
+                        $nullable = !$this->hasRequiredModifier($sm);
+                        $this->storeField(
+                            $resourceFields[$tableKey],
+                            $field,
+                            $type,
+                            $nullable,
+                        );
                     }
                 } catch (\Throwable $e) {
                     // ignore parse errors
                 }
             }
-
         }
 
         $dto->filamentResourceModelMap = $resourceModelMap;
@@ -175,7 +214,7 @@ class ParseFilamentFormsPipe
         $normalized = [];
 
         foreach ($configClasses as $class) {
-            if (! is_string($class)) {
+            if (!is_string($class)) {
                 continue;
             }
 
@@ -191,12 +230,23 @@ class ParseFilamentFormsPipe
     /**
      * @param  array<Node>  $ast
      */
-    private function resolveModelClassName(Node\Expr|null $default, array $ast, string $namespace): string|null
-    {
-        if ($default instanceof ClassConstFetch && $default->name instanceof Identifier && $default->name->toString() === 'class') {
+    private function resolveModelClassName(
+        Node\Expr|null $default,
+        array $ast,
+        string $namespace,
+    ): string|null {
+        if (
+            $default instanceof ClassConstFetch
+            && $default->name instanceof Identifier
+            && $default->name->toString() === 'class'
+        ) {
             $classNode = $default->class;
             if ($classNode instanceof Name) {
-                return $this->astHelper->resolveClassName($classNode->toString(), $ast, $namespace);
+                return $this->astHelper->resolveClassName(
+                    $classNode->toString(),
+                    $ast,
+                    $namespace,
+                );
             }
 
             return null;
@@ -213,7 +263,11 @@ class ParseFilamentFormsPipe
     {
         $className = ltrim($className, '\\');
 
-        if ($className === '' || ! class_exists($className) || ! is_subclass_of($className, Model::class)) {
+        if (
+            $className === ''
+            || !class_exists($className)
+            || !is_subclass_of($className, Model::class)
+        ) {
             return null;
         }
 
@@ -225,15 +279,17 @@ class ParseFilamentFormsPipe
      */
     private function gatherSchemaFiles(string $directory, string $suffix): array
     {
-        if (! is_dir($directory)) {
+        if (!is_dir($directory)) {
             return [];
         }
 
         $files = [];
-        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($directory));
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory),
+        );
 
         foreach ($iterator as $file) {
-            if (! $file instanceof \SplFileInfo || ! $file->isFile()) {
+            if (!$file instanceof \SplFileInfo || !$file->isFile()) {
                 continue;
             }
 
@@ -254,7 +310,7 @@ class ParseFilamentFormsPipe
         $typeMap = config()->array('migration-resource-checker.resource_component_type_map', []);
 
         $type = $typeMap[$resolved] ?? null;
-        if (! is_string($type)) {
+        if (!is_string($type)) {
             $shortName = basename(str_replace('\\', '/', $resolved));
             $type = $typeMap[$shortName] ?? null;
         }
@@ -281,7 +337,10 @@ class ParseFilamentFormsPipe
         $current = $componentCall->getAttribute('parent');
 
         while ($current instanceof MethodCall) {
-            if ($current->name instanceof Identifier && in_array($current->name->toString(), $requiredMethods, true)) {
+            if (
+                $current->name instanceof Identifier
+                && in_array($current->name->toString(), $requiredMethods, true)
+            ) {
                 return true;
             }
 
@@ -291,8 +350,12 @@ class ParseFilamentFormsPipe
         return false;
     }
 
-    private function storeField(FieldTable $table, string $field, string $type, bool $nullable): void
-    {
+    private function storeField(
+        FieldTable $table,
+        string $field,
+        string $type,
+        bool $nullable,
+    ): void {
         $table->put($field, new FieldDto($field, $type, $nullable));
     }
 }

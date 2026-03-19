@@ -1,0 +1,164 @@
+# Welcome to Mago!
+# For full documentation, see https://mago.carthage.software/tools/overview
+php-version = "8.5.0"
+
+[source]
+workspace = "."
+paths = ["src/", "tests/"]
+includes = ["vendor"]
+excludes = ["tests"]
+
+[formatter]
+# -------------------------------------------------------------------
+# Core layout
+# -------------------------------------------------------------------
+print-width = 80
+tab-width = 4
+use-tabs = false
+end-of-line = "lf"
+
+# -------------------------------------------------------------------
+# Strings & operators
+# -------------------------------------------------------------------
+single-quote = true
+# indent-heredoc = true
+remove-trailing-close-tag = true
+
+# -------------------------------------------------------------------
+# Braces
+# -------------------------------------------------------------------
+control-brace-style = "same_line"
+closure-brace-style = "same_line"
+function-brace-style = "next_line"
+method-brace-style = "next_line"
+classlike-brace-style = "next_line"
+
+inline-empty-control-braces = false
+inline-empty-closure-braces = true
+inline-empty-function-braces = false
+inline-empty-method-braces = false
+inline-empty-constructor-braces = true
+inline-empty-classlike-braces = true
+inline-empty-anonymous-class-braces = true
+
+# -------------------------------------------------------------------
+# Imports
+# -------------------------------------------------------------------
+sort-uses = true
+sort-class-methods = false
+separate-use-types = true
+expand-use-groups = true
+
+# -------------------------------------------------------------------
+# Method chaining
+# -------------------------------------------------------------------
+method-chain-breaking-style = "next_line"
+first-method-chain-on-new-line = true
+preserve-breaking-member-access-chain = false
+preserve-breaking-argument-list = false
+preserve-breaking-array-like = true
+preserve-breaking-parameter-list = false
+preserve-breaking-attribute-list = false
+preserve-breaking-conditional-expression = false
+break-promoted-properties-list = true
+line-before-binary-operator = true
+always-break-named-arguments-list = true
+always-break-attribute-named-argument-lists = true
+
+# -------------------------------------------------------------------
+# Arrays
+# -------------------------------------------------------------------
+array-table-style-alignment = true
+trailing-comma = true
+align-assignment-like = false
+
+# -------------------------------------------------------------------
+# Types
+# -------------------------------------------------------------------
+null-type-hint = "null_pipe"
+parentheses-around-new-in-member-access = false
+parentheses-in-new-expression = false
+parentheses-in-exit-and-die = true
+parentheses-in-attribute = false
+
+# -------------------------------------------------------------------
+# Spacing
+# -------------------------------------------------------------------
+space-before-arrow-function-parameter-list-parenthesis = false
+space-before-closure-parameter-list-parenthesis = true
+space-before-hook-parameter-list-parenthesis = false
+space-before-closure-use-clause-parenthesis = true
+# space-after-colon-in-enum-backing-type = true
+space-after-cast-unary-prefix-operators = true
+# space-after-reference-unary-prefix-operator = false
+space-after-error-control-unary-prefix-operator = false
+space-after-logical-not-unary-prefix-operator = false
+space-after-bitwise-not-unary-prefix-operator = false
+space-after-increment-unary-prefix-operator = false
+space-after-decrement-unary-prefix-operator = false
+space-after-additive-unary-prefix-operator = false
+space-around-concatenation-binary-operator = true
+space-around-assignment-in-declare = false
+space-within-grouping-parenthesis = false
+
+# -------------------------------------------------------------------
+# Empty lines
+# -------------------------------------------------------------------
+empty-line-after-control-structure = false
+empty-line-after-opening-tag = true
+empty-line-after-declare = true
+empty-line-after-namespace = true
+empty-line-after-use = true
+empty-line-after-symbols = true
+empty-line-between-same-symbols = true
+empty-line-after-class-like-constant = false
+empty-line-after-enum-case = false
+empty-line-after-trait-use = false
+empty-line-after-property = false
+empty-line-after-method = true
+empty-line-before-return = false
+empty-line-before-dangling-comments = true
+separate-class-like-members = true
+
+[linter]
+integrations = ["laravel", "phpunit"]
+
+[linter.rules]
+ambiguous-function-call = { enabled = false }
+literal-named-argument = { enabled = false }
+halstead = { enabled = false }
+cyclomatic-complexity = { enabled = false }
+kan-defect = { enabled = false }
+no-empty-comment = { enabled = false }
+no-literal-password = { enabled = false }
+too-many-methods = { enabled = false }
+excessive-parameter-list = { enabled = false }
+sensitive-parameter = { enabled = false }
+no-error-control-operator = { enabled = false }
+no-empty-catch-clause = { enabled = false }
+no-else-clause = { enabled = false }
+no-shorthand-ternary = { enabled = false }
+no-multi-assignments = { enabled = false }
+too-many-properties = { enabled = false }
+no-boolean-flag-parameter = { enabled = false }
+prefer-static-closure = { enabled = false }
+no-trailing-space = { enabled = false }
+prefer-first-class-callable = { enabled = false }
+tagged-todo = { enabled = false }
+prefer-arrow-function = { enabled = false }
+
+no-empty = { enabled = false }
+
+[analyzer]
+find-unused-definitions = true
+find-unused-expressions = false
+analyze-dead-code = true
+memoize-properties = true
+allow-possibly-undefined-array-keys = true
+check-throws = false
+check-missing-override = false
+find-unused-parameters = false
+strict-list-index-checks = false
+no-boolean-literal-comparison = false
+check-missing-type-hints = false
+register-super-globals = true

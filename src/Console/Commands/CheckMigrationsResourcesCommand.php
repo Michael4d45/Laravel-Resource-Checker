@@ -22,20 +22,23 @@ use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources
 
 class CheckMigrationsResourcesCommand extends Command
 {
-    protected $signature = 'check:migrations-resources '
-        . '{--output= : Output path for JSON report} '
-        . '{--fix-missing-properties : Automatically add missing @property annotations to model PHPDoc} '
-        . '{--fix-missing-property-read : Automatically add missing @property-read annotations for relationships to model PHPDoc} '
-        . '{--fix-wrong-property-read : Automatically fix wrong @property-read property names to snake_case}'
-        . '{--fix-wrong-model-doc-types : Automatically fix wrong PHPDoc property types to match migrations}'
-        . '{--fix-add-fields-to-resources : Automatically add missing fields to resource form schemas}'
-        . '{--fix-add-fields-to-model-docs : Automatically add missing @property annotations for fields to model PHPDoc}';
+    protected $signature =
+        'check:migrations-resources '
+            . '{--output= : Output path for JSON report} '
+            . '{--fix-missing-properties : Automatically add missing @property annotations to model PHPDoc} '
+            . '{--fix-missing-property-read : Automatically add missing @property-read annotations for relationships to model PHPDoc} '
+            . '{--fix-wrong-property-read : Automatically fix wrong @property-read property names to snake_case}'
+            . '{--fix-wrong-model-doc-types : Automatically fix wrong PHPDoc property types to match migrations}'
+            . '{--fix-add-fields-to-resources : Automatically add missing fields to resource form schemas}'
+            . '{--fix-add-fields-to-model-docs : Automatically add missing @property annotations for fields to model PHPDoc}';
 
     protected $description = 'Compare Filament resources and models against migrations (PHP files) using AST parsing';
 
     public function handle(): int
     {
-        $this->info('Comparing Filament resources and models against migrations using AST parsing...');
+        $this->info(
+            'Comparing Filament resources and models against migrations using AST parsing...',
+        );
 
         $enabledSections = config('migration-resource-checker.enabled_sections', [
             'migrations' => true,
@@ -43,6 +46,10 @@ class CheckMigrationsResourcesCommand extends Command
             'models' => true,
             'report' => true,
         ]);
+        $runMigrations = $this->sectionEnabled($enabledSections, 'migrations');
+        $runResources = $this->sectionEnabled($enabledSections, 'resources');
+        $runModels = $this->sectionEnabled($enabledSections, 'models');
+        $runReport = $this->sectionEnabled($enabledSections, 'report');
 
         // Check if database connection is available
         try {
@@ -55,22 +62,24 @@ class CheckMigrationsResourcesCommand extends Command
         $pipes = [];
 
         // Add migration/database parsing pipe
-        if ($enabledSections['migrations'] ?? true) {
-            $pipes[] = $connected ? ReadDatabasePipe::class : ParseMigrationsPipe::class;
+        if ($runMigrations) {
+            $pipes[] = $connected
+                ? ReadDatabasePipe::class
+                : ParseMigrationsPipe::class;
         }
 
         // Add resource parsing pipe
-        if ($enabledSections['resources'] ?? true) {
+        if ($runResources) {
             $pipes[] = ParseFilamentFormsPipe::class;
         }
 
         // Add model parsing pipe
-        if ($enabledSections['models'] ?? true) {
+        if ($runModels) {
             $pipes[] = ParseModelsPipe::class;
         }
 
         // Add report generation pipe
-        if ($enabledSections['report'] ?? true) {
+        if ($runReport) {
             $pipes[] = GenerateReportPipe::class;
         }
 
@@ -106,18 +115,26 @@ class CheckMigrationsResourcesCommand extends Command
         $report = $dto->report->toArray();
         $fullOutput = [
             'report' => $report,
-            'resources' => array_map(fn ($resource) => $resource->toArray(), $dto->resources),
+            'resources' => array_map(
+                fn($resource) => $resource->toArray(),
+                $dto->resources,
+            ),
         ];
 
-        $json = json_encode($fullOutput, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $json = json_encode(
+            $fullOutput,
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES,
+        );
         /** @var false|string $outputPathRaw */
         $outputPathRaw = $this->option('output');
         $defaultPath = 'reports/migration_resource_report.json';
         $configValue = config('migration-resource-checker.output_path');
         $configPath = is_string($configValue) ? $configValue : $defaultPath;
-        $outputPath = is_string($outputPathRaw) ? $outputPathRaw : base_path($configPath);
-        if (! is_dir(dirname($outputPath))) {
-            @mkdir(dirname($outputPath), 0755, true);
+        $outputPath = is_string($outputPathRaw)
+            ? $outputPathRaw
+            : base_path($configPath);
+        if (!is_dir(dirname($outputPath))) {
+            @mkdir(dirname($outputPath), 0o755, true);
         }
         file_put_contents($outputPath, $json . PHP_EOL);
 
@@ -128,5 +145,16 @@ class CheckMigrationsResourcesCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function sectionEnabled(mixed $enabledSections, string $section): bool
+    {
+        if (!is_array($enabledSections)) {
+            return true;
+        }
+
+        $value = $enabledSections[$section] ?? true;
+
+        return is_bool($value) ? $value : (bool) $value;
     }
 }

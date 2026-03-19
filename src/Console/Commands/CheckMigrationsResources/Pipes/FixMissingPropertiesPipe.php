@@ -18,8 +18,10 @@ class FixMissingPropertiesPipe extends BaseFixerPipe
         $this->docBlockHelper = new DocBlockHelper;
     }
 
-    public function __invoke(AnalysisResultDto $dto, \Closure $next): AnalysisResultDto
-    {
+    public function __invoke(
+        AnalysisResultDto $dto,
+        \Closure $next,
+    ): AnalysisResultDto {
         if (empty($dto->report)) {
             return $next($dto);
         }
@@ -28,8 +30,10 @@ class FixMissingPropertiesPipe extends BaseFixerPipe
         $modelFilePaths = $dto->modelFilePaths;
 
         foreach ($addFields as $table => $fieldTableDto) {
-            if (! isset($modelFilePaths[$table])) {
-                $this->command->warn("Model file for table {$table} not found.");
+            if (!array_key_exists($table, $modelFilePaths)) {
+                $this->command->warn(
+                    "Model file for table {$table} not found.",
+                );
 
                 continue;
             }
@@ -75,13 +79,23 @@ class FixMissingPropertiesPipe extends BaseFixerPipe
                     $newProperties[] = " * @property {$type} \${$field}";
                 }
 
-                $code = $this->docBlockHelper->addPropertiesToDocBlock($parsed['class'], $code, $newProperties);
+                $code = $this->docBlockHelper->addPropertiesToDocBlock(
+                    $parsed['class'],
+                    $code,
+                    $newProperties,
+                );
 
                 if ($this->writeFile($filePath, $code)) {
-                    $this->command->info('Added ' . $fieldTableDto->count() . " missing properties to {$filePath}");
+                    $this->command->info(
+                        'Added '
+                        . $fieldTableDto->count()
+                        . " missing properties to {$filePath}",
+                    );
                 }
             } catch (\Throwable $e) {
-                $this->command->error("Failed to fix {$filePath}: " . $e->getMessage());
+                $this->command->error(
+                    "Failed to fix {$filePath}: " . $e->getMessage(),
+                );
             }
         }
 

@@ -16,8 +16,10 @@ class FixWrongModelDocTypesPipe extends BaseFixerPipe
         parent::__construct($command);
     }
 
-    public function __invoke(AnalysisResultDto $dto, \Closure $next): AnalysisResultDto
-    {
+    public function __invoke(
+        AnalysisResultDto $dto,
+        \Closure $next,
+    ): AnalysisResultDto {
         if (empty($dto->report)) {
             return $next($dto);
         }
@@ -26,8 +28,10 @@ class FixWrongModelDocTypesPipe extends BaseFixerPipe
         $modelFilePaths = $dto->modelFilePaths;
 
         foreach ($wrongTypes as $table => $fieldTypes) {
-            if (! isset($modelFilePaths[$table])) {
-                $this->command->warn("Model file for table {$table} not found.");
+            if (!array_key_exists($table, $modelFilePaths)) {
+                $this->command->warn(
+                    "Model file for table {$table} not found.",
+                );
 
                 continue;
             }
@@ -58,15 +62,26 @@ class FixWrongModelDocTypesPipe extends BaseFixerPipe
                     $propertiesToUpdate[] = " * @property {$expectedType} \${$fieldName}";
                 }
 
-                if (! empty($propertiesToUpdate)) {
-                    $code = $this->updateExistingProperties($code, $parsed['class'], $propertiesToUpdate, $fieldTypes);
+                if (!empty($propertiesToUpdate)) {
+                    $code = $this->updateExistingProperties(
+                        $code,
+                        $parsed['class'],
+                        $propertiesToUpdate,
+                        $fieldTypes,
+                    );
                 }
 
                 if ($this->writeFile($filePath, $code)) {
-                    $this->command->info('Fixed ' . count($propertiesToUpdate) . " wrong PHPDoc types in {$filePath}");
+                    $this->command->info(
+                        'Fixed '
+                        . count($propertiesToUpdate)
+                        . " wrong PHPDoc types in {$filePath}",
+                    );
                 }
             } catch (\Throwable $e) {
-                $this->command->error("Failed to fix {$filePath}: " . $e->getMessage());
+                $this->command->error(
+                    "Failed to fix {$filePath}: " . $e->getMessage(),
+                );
             }
         }
 
@@ -79,11 +94,15 @@ class FixWrongModelDocTypesPipe extends BaseFixerPipe
      * @param  array<string>  $propertiesToUpdate
      * @param  array<string, WrongTypeDto>  $fieldTypes
      */
-    private function updateExistingProperties(string $code, Class_ $class, array $propertiesToUpdate, array $fieldTypes): string
-    {
+    private function updateExistingProperties(
+        string $code,
+        Class_ $class,
+        array $propertiesToUpdate,
+        array $fieldTypes,
+    ): string {
         $existingDoc = $class->getDocComment();
 
-        if (! $existingDoc) {
+        if (!$existingDoc) {
             return $code;
         }
 
@@ -93,24 +112,32 @@ class FixWrongModelDocTypesPipe extends BaseFixerPipe
         $updated = false;
         foreach ($docLines as &$line) {
             // Look for @property lines
-            if (preg_match('/^\s*\*\s*@property\s+(.+?)\s+\$([a-zA-Z0-9_]+)/', $line, $matches)) {
-                $currentType = trim($matches[1]);
-                $fieldName = $matches[2];
-
-                if (isset($fieldTypes[$fieldName])) {
-                    $expectedType = $fieldTypes[$fieldName]->expectedType;
-                    $expectedNullable = $fieldTypes[$fieldName]->expectedNullable;
-
-                    // Add nullable suffix using union style (Type|null)
-                    if ($expectedNullable) {
-                        $expectedType .= '|null';
-                    }
-
-                    // Replace the type in the line
-                    $line = str_replace($currentType, $expectedType, $line);
-                    $updated = true;
-                }
+            if (!preg_match(
+                '/^\s*\*\s*@property\s+(.+?)\s+\$([a-zA-Z0-9_]+)/',
+                $line,
+                $matches,
+            )) {
+                continue;
             }
+
+            $currentType = trim($matches[1]);
+            $fieldName = $matches[2];
+
+            if (!array_key_exists($fieldName, $fieldTypes)) {
+                continue;
+            }
+
+            $expectedType = $fieldTypes[$fieldName]->expectedType;
+            $expectedNullable = $fieldTypes[$fieldName]->expectedNullable;
+
+            // Add nullable suffix using union style (Type|null)
+            if ($expectedNullable) {
+                $expectedType .= '|null';
+            }
+
+            // Replace the type in the line
+            $line = str_replace($currentType, $expectedType, $line);
+            $updated = true;
         }
 
         if ($updated) {

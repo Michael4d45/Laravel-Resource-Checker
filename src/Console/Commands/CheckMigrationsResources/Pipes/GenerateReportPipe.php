@@ -26,25 +26,41 @@ class GenerateReportPipe
     /** @var array<string> */
     private array $ignoreFieldsForModels = [];
 
-    public function __invoke(AnalysisResultDto $dto, \Closure $next): AnalysisResultDto
-    {
+    public function __invoke(
+        AnalysisResultDto $dto,
+        \Closure $next,
+    ): AnalysisResultDto {
         // Base tables ignored across all components
         $ignoredTablesConfig = config()->array('migration-resource-checker.ignored_tables', []);
 
         // Extract ignored tables for each component
         /** @var array<string, array<string>> $ignoredTablesConfig */
-        $this->ignoreForResources = $this->getIgnoredTablesForComponent($ignoredTablesConfig, 'resources');
-        $this->ignoreForModels = $this->getIgnoredTablesForComponent($ignoredTablesConfig, 'models');
-        $this->ignoreForPhpDoc = $this->getIgnoredTablesForComponent($ignoredTablesConfig, 'phpdoc');
+        $this->ignoreForResources = $this->getIgnoredTablesForComponent(
+            $ignoredTablesConfig,
+            'resources',
+        );
+        $this->ignoreForModels = $this->getIgnoredTablesForComponent(
+            $ignoredTablesConfig,
+            'models',
+        );
+        $this->ignoreForPhpDoc = $this->getIgnoredTablesForComponent(
+            $ignoredTablesConfig,
+            'phpdoc',
+        );
 
         // Extract ignored fields for each component
         $ignoredFieldsConfig = config()->array('migration-resource-checker.ignored_fields', []);
         /** @var array<string, array<string>> $ignoredFieldsConfig */
-        $this->ignoreFieldsForModels = $this->getIgnoredFieldsForComponent($ignoredFieldsConfig, 'models');
+        $this->ignoreFieldsForModels = $this->getIgnoredFieldsForComponent(
+            $ignoredFieldsConfig,
+            'models',
+        );
 
         $dto->report = new ReportDto(
             addFieldsToFilamentForm: $this->addFieldsToFilamentForm($dto),
-            removeFieldsFromFilamentForm: $this->removeFieldsFromFilamentForm($dto),
+            removeFieldsFromFilamentForm: $this->removeFieldsFromFilamentForm(
+                $dto,
+            ),
             addFilamentResources: $this->addFilamentResources($dto),
             removeFilamentResources: $this->removeFilamentResources($dto),
             addFieldsToModels: $this->addFieldsToModels($dto),
@@ -54,8 +70,12 @@ class GenerateReportPipe
             addFieldsToModelDocs: $this->addFieldsToModelDocs($dto),
             removeFieldsFromModelDocs: $this->removeFieldsFromModelDocs($dto),
             wrongModelDocTypes: $this->wrongModelDocTypes($dto),
-            shouldBeCamelCasePhpdocProperty: $this->shouldBeCamelCasePhpdocProperty($dto),
-            shouldBeCamelCaseRelationship: $this->shouldBeCamelCaseRelationship($dto),
+            shouldBeCamelCasePhpdocProperty: $this->shouldBeCamelCasePhpdocProperty(
+                $dto,
+            ),
+            shouldBeCamelCaseRelationship: $this->shouldBeCamelCaseRelationship(
+                $dto,
+            ),
             addPropertyRead: $this->addPropertyRead($dto),
         );
 
@@ -68,13 +88,17 @@ class GenerateReportPipe
      * @param  array<string, array<string>>  $ignoredTablesConfig
      * @return array<string>
      */
-    private function getIgnoredTablesForComponent(array $ignoredTablesConfig, string $component): array
-    {
+    private function getIgnoredTablesForComponent(
+        array $ignoredTablesConfig,
+        string $component,
+    ): array {
         $ignoredTables = [];
         foreach ($ignoredTablesConfig as $table => $components) {
-            if (in_array($component, $components, true)) {
-                $ignoredTables[] = $table;
+            if (!in_array($component, $components, true)) {
+                continue;
             }
+
+            $ignoredTables[] = $table;
         }
 
         return $ignoredTables;
@@ -86,13 +110,17 @@ class GenerateReportPipe
      * @param  array<string, array<string>>  $ignoredFieldsConfig
      * @return array<string>
      */
-    private function getIgnoredFieldsForComponent(array $ignoredFieldsConfig, string $component): array
-    {
+    private function getIgnoredFieldsForComponent(
+        array $ignoredFieldsConfig,
+        string $component,
+    ): array {
         $ignoredFields = [];
         foreach ($ignoredFieldsConfig as $field => $components) {
-            if (in_array($component, $components, true)) {
-                $ignoredFields[] = $field;
+            if (!in_array($component, $components, true)) {
+                continue;
             }
+
+            $ignoredFields[] = $field;
         }
 
         return $ignoredFields;
@@ -105,14 +133,16 @@ class GenerateReportPipe
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
-            if (in_array($table, $this->ignoreForResources)) {
+            if (in_array($table, $this->ignoreForResources, true)) {
                 continue;
             }
             $toAdd = new FieldTable;
             foreach ($resourceReport->migrationFields as $fieldName => $fieldDto) {
-                if (! $resourceReport->filamentFormFields->has($fieldName)) {
-                    $toAdd->put($fieldName, $fieldDto);
+                if ($resourceReport->filamentFormFields->has($fieldName)) {
+                    continue;
                 }
+
+                $toAdd->put($fieldName, $fieldDto);
             }
             if ($toAdd->isNotEmpty()) {
                 $result[$table] = $toAdd;
@@ -129,14 +159,16 @@ class GenerateReportPipe
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
-            if (in_array($table, $this->ignoreForResources)) {
+            if (in_array($table, $this->ignoreForResources, true)) {
                 continue;
             }
             $toRemove = new FieldTable;
             foreach ($resourceReport->filamentFormFields as $fieldName => $fieldDto) {
-                if (! $resourceReport->migrationFields->has($fieldName)) {
-                    $toRemove->put($fieldName, $fieldDto);
+                if ($resourceReport->migrationFields->has($fieldName)) {
+                    continue;
                 }
+
+                $toRemove->put($fieldName, $fieldDto);
             }
             if ($toRemove->isNotEmpty()) {
                 $result[$table] = $toRemove;
@@ -153,7 +185,7 @@ class GenerateReportPipe
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
-            if (in_array($table, $this->ignoreForResources)) {
+            if (in_array($table, $this->ignoreForResources, true)) {
                 continue;
             }
             if ($resourceReport->filamentFormFields->isEmpty()) {
@@ -179,14 +211,25 @@ class GenerateReportPipe
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
-            if (in_array($table, $this->ignoreForModels)) {
+            if (in_array($table, $this->ignoreForModels, true)) {
                 continue;
             }
             $toAdd = new FieldTable;
             foreach ($resourceReport->migrationFields as $fieldName => $fieldDto) {
-                if (! $resourceReport->modelFields->has($fieldName) && ! in_array($fieldName, $this->ignoreFieldsForModels)) {
-                    $toAdd->put($fieldName, $fieldDto);
+                if (
+                    !(
+                        !$resourceReport->modelFields->has($fieldName)
+                        && !in_array(
+                            $fieldName,
+                            $this->ignoreFieldsForModels,
+                            true,
+                        )
+                    )
+                ) {
+                    continue;
                 }
+
+                $toAdd->put($fieldName, $fieldDto);
             }
             if ($toAdd->isNotEmpty()) {
                 $result[$table] = $toAdd;
@@ -203,14 +246,23 @@ class GenerateReportPipe
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
-            if (in_array($table, $this->ignoreForModels)) {
+            if (in_array($table, $this->ignoreForModels, true)) {
                 continue;
             }
             $toRemove = new FieldTable;
             foreach ($resourceReport->modelFields as $fieldName => $fieldDto) {
-                if (! $resourceReport->migrationFields->has($fieldName)) {
-                    $toRemove->put($fieldName, new FieldDto($fieldDto->name, $fieldDto->cast ?? 'mixed', false));
+                if ($resourceReport->migrationFields->has($fieldName)) {
+                    continue;
                 }
+
+                $toRemove->put(
+                    $fieldName,
+                    new FieldDto(
+                        $fieldDto->name,
+                        $fieldDto->cast ?? 'mixed',
+                        false,
+                    ),
+                );
             }
             if ($toRemove->isNotEmpty()) {
                 $result[$table] = $toRemove;
@@ -227,7 +279,7 @@ class GenerateReportPipe
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
-            if (in_array($table, $this->ignoreForModels)) {
+            if (in_array($table, $this->ignoreForModels, true)) {
                 continue;
             }
             if ($resourceReport->modelFields->isEmpty()) {
@@ -253,14 +305,16 @@ class GenerateReportPipe
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
-            if (in_array($table, $this->ignoreForPhpDoc)) {
+            if (in_array($table, $this->ignoreForPhpDoc, true)) {
                 continue;
             }
             $toAdd = new FieldTable;
             foreach ($resourceReport->migrationFields as $fieldName => $fieldDto) {
-                if (! $resourceReport->phpdocFields->has($fieldName)) {
-                    $toAdd->put($fieldName, $fieldDto);
+                if ($resourceReport->phpdocFields->has($fieldName)) {
+                    continue;
                 }
+
+                $toAdd->put($fieldName, $fieldDto);
             }
             if ($toAdd->isNotEmpty()) {
                 $result[$table] = $toAdd;
@@ -277,18 +331,23 @@ class GenerateReportPipe
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
-            if (in_array($table, $this->ignoreForPhpDoc)) {
+            if (in_array($table, $this->ignoreForPhpDoc, true)) {
                 continue;
             }
             $toRemove = new FieldTable;
             foreach ($resourceReport->phpdocFields as $fieldName => $phpDocDto) {
-                if (! $resourceReport->migrationFields->has($fieldName)) {
-                    // Create a FieldDto from PhpDocDto? But return FieldTable, so need FieldDto.
-                    // Perhaps put the migration one if exists, but since not, maybe skip or create dummy.
-                    // For remove, perhaps use the phpdoc as FieldDto, but FieldDto has name,type,nullable.
-                    // PhpDocDto has type, nullable.
-                    $toRemove->put($fieldName, new FieldDto($fieldName, $phpDocDto->type, $phpDocDto->nullable));
+                if ($resourceReport->migrationFields->has($fieldName)) {
+                    continue;
                 }
+
+                $toRemove->put(
+                    $fieldName,
+                    new FieldDto(
+                        $fieldName,
+                        $phpDocDto->type,
+                        $phpDocDto->nullable,
+                    ),
+                );
             }
             if ($toRemove->isNotEmpty()) {
                 $result[$table] = $toRemove;
@@ -305,36 +364,56 @@ class GenerateReportPipe
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
-            if (in_array($table, $this->ignoreForPhpDoc)) {
+            if (in_array($table, $this->ignoreForPhpDoc, true)) {
                 continue;
             }
             $wrong = [];
             foreach ($resourceReport->phpdocFields as $fieldName => $phpDocDto) {
-                if ($resourceReport->migrationFields->has($fieldName)) {
-                    $migrationDto = $resourceReport->migrationFields->get($fieldName);
-                    if ($migrationDto === null) {
-                        continue;
-                    }
-                    $cast = $resourceReport->modelFields->get($fieldName)?->cast;
-                    $expectedType = $cast ? $this->getExpectedPhpDocTypeFromCast($cast) : $this->getExpectedPhpDocType($migrationDto->type);
-                    $expectedNullable = $migrationDto->nullable;
+                if (!$resourceReport->migrationFields->has($fieldName)) {
+                    continue;
+                }
 
-                    $effectiveActualType = $phpDocDto->type;
-                    if ($phpDocDto->type === 'mixed' && $cast === 'array') {
-                        $effectiveActualType = 'array';
-                    }
+                $migrationDto =
+                    $resourceReport->migrationFields->get($fieldName);
+                if ($migrationDto === null) {
+                    continue;
+                }
+                $cast = $resourceReport->modelFields->get($fieldName)?->cast;
+                $expectedType = $cast
+                    ? $this->getExpectedPhpDocTypeFromCast($cast)
+                    : $this->getExpectedPhpDocType($migrationDto->type);
+                $expectedNullable = $migrationDto->nullable;
 
-                    // Handle array types in PHPDoc (e.g., array<string, string>, Collection<Type>)
-                    if ($expectedType === 'array' && ($phpDocDto->arrayType === 'array' || $phpDocDto->arrayType === 'Collection')) {
-                        $effectiveActualType = 'array';
-                    }
+                $effectiveActualType = $phpDocDto->type;
+                if ($phpDocDto->type === 'mixed' && $cast === 'array') {
+                    $effectiveActualType = 'array';
+                }
 
-                    if ($effectiveActualType !== $expectedType || $phpDocDto->nullable !== $expectedNullable) {
-                        $wrong[$fieldName] = new WrongTypeDto($fieldName, $expectedType, $effectiveActualType, $expectedNullable, $phpDocDto->nullable);
-                    }
+                // Handle array types in PHPDoc (e.g., array<string, string>, Collection<Type>)
+                if (
+                    $expectedType === 'array'
+                    && (
+                        $phpDocDto->arrayType === 'array'
+                        || $phpDocDto->arrayType === 'Collection'
+                    )
+                ) {
+                    $effectiveActualType = 'array';
+                }
+
+                if (
+                    $effectiveActualType !== $expectedType
+                    || $phpDocDto->nullable !== $expectedNullable
+                ) {
+                    $wrong[$fieldName] = new WrongTypeDto(
+                        $fieldName,
+                        $expectedType,
+                        $effectiveActualType,
+                        $expectedNullable,
+                        $phpDocDto->nullable,
+                    );
                 }
             }
-            if (! empty($wrong)) {
+            if (!empty($wrong)) {
                 $result[$table] = $wrong;
             }
         }
@@ -371,19 +450,28 @@ class GenerateReportPipe
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
-            if (in_array($table, $this->ignoreForPhpDoc)) {
+            if (in_array($table, $this->ignoreForPhpDoc, true)) {
                 continue;
             }
             $wrong = new FieldTable;
             foreach ($resourceReport->phpdocReadFields as $fieldName => $phpDocDto) {
-                if ($resourceReport->modelRelationships->has($fieldName)) {
-                    $relDto = $resourceReport->modelRelationships->get($fieldName);
-                    if ($relDto === null) {
-                        continue;
-                    }
-                    if ($phpDocDto->type !== $relDto->model) {
-                        $wrong->put($fieldName, new FieldDto($fieldName, $phpDocDto->type, $phpDocDto->nullable));
-                    }
+                if (!$resourceReport->modelRelationships->has($fieldName)) {
+                    continue;
+                }
+
+                $relDto = $resourceReport->modelRelationships->get($fieldName);
+                if ($relDto === null) {
+                    continue;
+                }
+                if ($phpDocDto->type !== $relDto->model) {
+                    $wrong->put(
+                        $fieldName,
+                        new FieldDto(
+                            $fieldName,
+                            $phpDocDto->type,
+                            $phpDocDto->nullable,
+                        ),
+                    );
                 }
             }
             if ($wrong->isNotEmpty()) {
@@ -401,19 +489,24 @@ class GenerateReportPipe
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
-            if (in_array($table, $this->ignoreForPhpDoc)) {
+            if (in_array($table, $this->ignoreForPhpDoc, true)) {
                 continue;
             }
             $wrong = [];
             foreach ($resourceReport->modelRelationships as $relName => $relDto) {
-                if (str_contains($relName, '_')) {
-                    $expectedName = Str::camel($relName);
-                    if ($relName !== $expectedName) {
-                        $wrong[$relName] = new WrongRelationshipNameDto($relName, $expectedName);
-                    }
+                if (!str_contains($relName, '_')) {
+                    continue;
+                }
+
+                $expectedName = Str::camel($relName);
+                if ($relName !== $expectedName) {
+                    $wrong[$relName] = new WrongRelationshipNameDto(
+                        $relName,
+                        $expectedName,
+                    );
                 }
             }
-            if (! empty($wrong)) {
+            if (!empty($wrong)) {
                 $result[$table] = $wrong;
             }
         }
@@ -428,14 +521,19 @@ class GenerateReportPipe
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
-            if (in_array($table, $this->ignoreForPhpDoc)) {
+            if (in_array($table, $this->ignoreForPhpDoc, true)) {
                 continue;
             }
             $toAdd = new FieldTable;
             foreach ($resourceReport->modelRelationships as $relName => $relDto) {
-                if (! $resourceReport->phpdocReadFields->has($relName)) {
-                    $toAdd->put($relName, new FieldDto($relName, $relDto->model, false));
+                if ($resourceReport->phpdocReadFields->has($relName)) {
+                    continue;
                 }
+
+                $toAdd->put(
+                    $relName,
+                    new FieldDto($relName, $relDto->model, false),
+                );
             }
             if ($toAdd->isNotEmpty()) {
                 $result[$table] = $toAdd;

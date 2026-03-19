@@ -29,10 +29,14 @@ class FixAddFieldsToResourcesPipe
         'id',
     ];
 
-    public function __construct(private Command $command) {}
+    public function __construct(
+        private Command $command,
+    ) {}
 
-    public function __invoke(AnalysisResultDto $dto, \Closure $next): AnalysisResultDto
-    {
+    public function __invoke(
+        AnalysisResultDto $dto,
+        \Closure $next,
+    ): AnalysisResultDto {
         if (empty($dto->report)) {
             return $next($dto);
         }
@@ -40,20 +44,33 @@ class FixAddFieldsToResourcesPipe
         $addFields = $dto->report->addFieldsToFilamentForm;
         $resourceFilePaths = array_flip($dto->filamentResourceModelMap);
 
-        $tablesToProcess = array_values(array_unique(array_merge(array_keys($addFields), array_keys($resourceFilePaths))));
+        $tablesToProcess = array_values(array_unique(array_merge(
+            array_keys($addFields),
+            array_keys($resourceFilePaths),
+        )));
 
         foreach ($tablesToProcess as $table) {
-            if (! isset($resourceFilePaths[$table])) {
-                $this->command->warn("Resource file for table {$table} not found.");
+            if (!array_key_exists($table, $resourceFilePaths)) {
+                $this->command->warn(
+                    "Resource file for table {$table} not found.",
+                );
 
                 continue;
             }
 
             $resourceFilePath = $resourceFilePaths[$table];
-            $formFilePath = dirname($resourceFilePath) . DIRECTORY_SEPARATOR . 'Schemas' . DIRECTORY_SEPARATOR . basename($resourceFilePath, 'Resource.php') . 'Form.php';
+            $formFilePath =
+                dirname($resourceFilePath)
+                . DIRECTORY_SEPARATOR
+                . 'Schemas'
+                . DIRECTORY_SEPARATOR
+                . basename($resourceFilePath, 'Resource.php')
+                . 'Form.php';
 
-            if (! file_exists($formFilePath)) {
-                $this->command->warn("Form schema file not found for resource {$table} at {$formFilePath}");
+            if (!file_exists($formFilePath)) {
+                $this->command->warn(
+                    "Form schema file not found for resource {$table} at {$formFilePath}",
+                );
 
                 continue;
             }
@@ -78,36 +95,49 @@ class FixAddFieldsToResourcesPipe
                 $returnStmt = $nodeFinder->findFirst($ast, function ($node) {
                     return $node instanceof Return_;
                 });
-                if (! $returnStmt instanceof Return_) {
-                    $this->command->error("Could not find return statement in {$formFilePath}");
+                if (!$returnStmt instanceof Return_) {
+                    $this->command->error(
+                        "Could not find return statement in {$formFilePath}",
+                    );
 
                     continue;
                 }
 
                 $methodCall = $returnStmt->expr;
-                if (! $methodCall instanceof MethodCall) {
-                    $this->command->error("Could not find components method call in {$formFilePath}");
+                if (!$methodCall instanceof MethodCall) {
+                    $this->command->error(
+                        "Could not find components method call in {$formFilePath}",
+                    );
 
                     continue;
                 }
 
                 $methodName = $methodCall->name;
-                if (! $methodName instanceof Identifier || $methodName->name !== 'components') {
-                    $this->command->error("Could not find components method call in {$formFilePath}");
+                if (
+                    !$methodName instanceof Identifier
+                    || $methodName->name !== 'components'
+                ) {
+                    $this->command->error(
+                        "Could not find components method call in {$formFilePath}",
+                    );
 
                     continue;
                 }
 
                 $firstArg = $methodCall->args[0] ?? null;
-                if (! $firstArg instanceof Arg) {
-                    $this->command->error("Components arg is not provided in {$formFilePath}");
+                if (!$firstArg instanceof Arg) {
+                    $this->command->error(
+                        "Components arg is not provided in {$formFilePath}",
+                    );
 
                     continue;
                 }
 
                 $arrayArg = $firstArg->value;
-                if (! $arrayArg instanceof Array_) {
-                    $this->command->error("Components arg is not an array in {$formFilePath}");
+                if (!$arrayArg instanceof Array_) {
+                    $this->command->error(
+                        "Components arg is not an array in {$formFilePath}",
+                    );
 
                     continue;
                 }
@@ -120,12 +150,20 @@ class FixAddFieldsToResourcesPipe
                 $fieldTableDto = $addFields[$table] ?? new FieldTable;
                 foreach ($fieldTableDto as $fieldDto) {
                     $field = $fieldDto->name;
-                    if (in_array($field, $existingFields, true) || isset($newFieldByName[$field])) {
+                    if (
+                        in_array($field, $existingFields, true)
+                        || array_key_exists($field, $newFieldByName)
+                    ) {
                         continue;
                     }
                     $dbType = $fieldDto->type;
                     $isNullable = $fieldDto->nullable;
-                    $definition = $this->createComponentDefinition($field, $dbType, $isNullable, $code);
+                    $definition = $this->createComponentDefinition(
+                        $field,
+                        $dbType,
+                        $isNullable,
+                        $code,
+                    );
                     $newFieldByName[$field] = $definition;
                 }
 
@@ -135,23 +173,40 @@ class FixAddFieldsToResourcesPipe
                 );
                 foreach ($readonlyFields as $fieldDto) {
                     $fieldName = $fieldDto->name;
-                    if (in_array($fieldName, $existingFields, true) || isset($newFieldByName[$fieldName])) {
+                    if (
+                        in_array($fieldName, $existingFields, true)
+                        || array_key_exists($fieldName, $newFieldByName)
+                    ) {
                         continue;
                     }
-                    $newFieldByName[$fieldName] = $this->createComponentDefinition($fieldDto->name, $fieldDto->type, $fieldDto->nullable, $code);
+                    $newFieldByName[$fieldName] = $this->createComponentDefinition(
+                        $fieldDto->name,
+                        $fieldDto->type,
+                        $fieldDto->nullable,
+                        $code,
+                    );
                 }
 
                 if (empty($newFieldByName)) {
                     continue;
                 }
 
-                $code = $this->insertNewComponentFields($code, $arrayArg, array_values($newFieldByName));
+                $code = $this->insertNewComponentFields(
+                    $code,
+                    $arrayArg,
+                    array_values($newFieldByName),
+                );
 
                 file_put_contents($formFilePath, $code);
-                $this->command->info('Added ' . count($newFields) . " missing fields to {$formFilePath}");
-
+                $this->command->info(
+                    'Added '
+                    . count($newFields)
+                    . " missing fields to {$formFilePath}",
+                );
             } catch (\Throwable $e) {
-                $this->command->error("Failed to fix {$formFilePath}: " . $e->getMessage());
+                $this->command->error(
+                    "Failed to fix {$formFilePath}: " . $e->getMessage(),
+                );
             }
         }
 
@@ -164,12 +219,15 @@ class FixAddFieldsToResourcesPipe
      *
      * @param  list<string>  $newFields
      */
-    private function insertNewComponentFields(string $code, Array_ $array, array $newFields): string
-    {
+    private function insertNewComponentFields(
+        string $code,
+        Array_ $array,
+        array $newFields,
+    ): string {
         $arrayStart = $array->getAttribute('startFilePos');
         $arrayEnd = $array->getAttribute('endFilePos');
 
-        if (! is_int($arrayStart) || ! is_int($arrayEnd)) {
+        if (!is_int($arrayStart) || !is_int($arrayEnd)) {
             return $code;
         }
 
@@ -192,7 +250,12 @@ class FixAddFieldsToResourcesPipe
 
         $insertPosition = $arrayEnd;
         $beforeArrayEnd = substr($code, 0, $arrayEnd);
-        if (preg_match('/(?:\n[ \t]*\/\/[^\n]*)+\s*$/', $beforeArrayEnd, $matches, PREG_OFFSET_CAPTURE)) {
+        if (preg_match(
+            '/(?:\n[ \t]*\/\/[^\n]*)+\s*$/',
+            $beforeArrayEnd,
+            $matches,
+            PREG_OFFSET_CAPTURE,
+        )) {
             $insertPosition = $matches[0][1];
         } else {
             $newlinePosition = strrpos($beforeArrayEnd, "\n");
@@ -201,31 +264,51 @@ class FixAddFieldsToResourcesPipe
             }
         }
 
-        return substr($code, 0, $insertPosition) . $insertText . substr($code, $insertPosition);
+        return (
+            substr($code, 0, $insertPosition)
+            . $insertText
+            . substr($code, $insertPosition)
+        );
     }
 
-    private function createComponentDefinition(string $field, string $dbType, bool $isNullable, string $code): string
-    {
+    private function createComponentDefinition(
+        string $field,
+        string $dbType,
+        bool $isNullable,
+        string $code,
+    ): string {
         $normalizedType = strtolower($dbType);
-        $componentFqn = (string) config()->string('migration-resource-checker.resource_component_default', '\\Filament\\Forms\\Components\\TextInput');
+        $componentFqn = (string) config()->string(
+            'migration-resource-checker.resource_component_default',
+            '\\Filament\\Forms\\Components\\TextInput',
+        );
         $componentMap = config()->array('migration-resource-checker.resource_component_mappings', []);
-        if (isset($componentMap[$normalizedType]) && is_string($componentMap[$normalizedType])) {
+        if (
+            array_key_exists($normalizedType, $componentMap)
+            && is_string($componentMap[$normalizedType])
+        ) {
             $componentFqn = (string) $componentMap[$normalizedType];
         }
 
         $componentFqn = '\\' . ltrim($componentFqn, '\\');
 
-        $numericTypes = config()->array('migration-resource-checker.resource_numeric_types', ['int', 'integer']);
+        $numericTypes = config()->array('migration-resource-checker.resource_numeric_types', [
+            'int',
+            'integer',
+        ]);
         $isNumeric = in_array($normalizedType, $numericTypes, true);
 
-        $componentReference = $this->resolveComponentReference($componentFqn, $code);
+        $componentReference = $this->resolveComponentReference(
+            $componentFqn,
+            $code,
+        );
         $definition = "{$componentReference}::make('{$field}')";
 
         if ($isNumeric) {
             $definition .= '->numeric()';
         }
 
-        if (! $isNullable) {
+        if (!$isNullable) {
             $definition .= '->required()';
         }
 
@@ -236,10 +319,14 @@ class FixAddFieldsToResourcesPipe
         return $definition;
     }
 
-    private function resolveComponentReference(string $componentFqn, string $code): string
-    {
+    private function resolveComponentReference(
+        string $componentFqn,
+        string $code,
+    ): string {
         $trimmed = ltrim($componentFqn, '\\');
-        $shortName = (str_contains($trimmed, '\\')) ? substr($trimmed, strrpos($trimmed, '\\') + 1) : $trimmed;
+        $shortName = str_contains($trimmed, '\\')
+            ? substr($trimmed, strrpos($trimmed, '\\') + 1)
+            : $trimmed;
 
         if (str_contains($code, "use {$trimmed};")) {
             return $shortName;
@@ -278,20 +365,23 @@ class FixAddFieldsToResourcesPipe
             $expr = $expr->var;
         }
 
-        if (! $expr instanceof StaticCall) {
+        if (!$expr instanceof StaticCall) {
             return null;
         }
 
-        if (! $expr->name instanceof Identifier || $expr->name->name !== 'make') {
+        if (
+            !$expr->name instanceof Identifier
+            || $expr->name->name !== 'make'
+        ) {
             return null;
         }
 
         $firstArg = $expr->args[0] ?? null;
-        if (! $firstArg instanceof Arg) {
+        if (!$firstArg instanceof Arg) {
             return null;
         }
 
-        if (! $firstArg->value instanceof String_) {
+        if (!$firstArg->value instanceof String_) {
             return null;
         }
 
@@ -302,12 +392,14 @@ class FixAddFieldsToResourcesPipe
      * @param  array<string>  $existingFields
      * @return list<FieldDto>
      */
-    private function collectReadonlyFields(FieldTable $migrationFields, array $existingFields): array
-    {
+    private function collectReadonlyFields(
+        FieldTable $migrationFields,
+        array $existingFields,
+    ): array {
         $fields = [];
 
         foreach (self::READONLY_FIELDS as $field) {
-            if (! $migrationFields->has($field)) {
+            if (!$migrationFields->has($field)) {
                 continue;
             }
 

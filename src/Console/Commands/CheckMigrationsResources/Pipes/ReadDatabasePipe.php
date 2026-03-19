@@ -12,8 +12,10 @@ use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources
 
 class ReadDatabasePipe
 {
-    public function __invoke(AnalysisResultDto $dto, \Closure $next): AnalysisResultDto
-    {
+    public function __invoke(
+        AnalysisResultDto $dto,
+        \Closure $next,
+    ): AnalysisResultDto {
         $tables = Schema::getTableListing();
 
         $migrationTables = [];

@@ -17,7 +17,10 @@ class LaravelResourceCheckerServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->publishes([
-            __DIR__ . '/../config/migration-resource-checker.php' => config_path('migration-resource-checker.php'),
+            __DIR__
+                . '/../config/migration-resource-checker.php' => config_path(
+                'migration-resource-checker.php',
+            ),
         ], 'config');
 
         if ($this->app->runningInConsole()) {

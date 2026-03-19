@@ -73,8 +73,11 @@ class AstHelper
     /**
      * @param  array<Node>  $ast
      */
-    public function resolveClassName(string $className, array $ast, string $namespace): string
-    {
+    public function resolveClassName(
+        string $className,
+        array $ast,
+        string $namespace,
+    ): string {
         $className = ltrim($className, '\\');
 
         if (str_contains($className, '\\')) {
@@ -84,7 +87,9 @@ class AstHelper
         $uses = $this->finder->findInstanceOf($ast, Use_::class);
         foreach ($uses as $use) {
             foreach ($use->uses as $useUse) {
-                $alias = $useUse->alias !== null ? $useUse->alias->toString() : $useUse->name->getLast();
+                $alias = $useUse->alias !== null
+                    ? $useUse->alias->toString()
+                    : $useUse->name->getLast();
                 if ($alias === $className) {
                     return $useUse->name->toString();
                 }
@@ -104,7 +109,7 @@ class AstHelper
     public function getNamespace(array $ast): string
     {
         $namespaces = $this->finder->findInstanceOf($ast, Namespace_::class);
-        if (! empty($namespaces)) {
+        if (!empty($namespaces)) {
             return $namespaces[0]->name?->toString() ?? '';
         }
 
@@ -141,7 +146,7 @@ class AstHelper
         $relationships = [];
         $methods = $this->finder->findInstanceOf($ast, ClassMethod::class);
         foreach ($methods as $method) {
-            if (! $method->isPublic()) {
+            if (!$method->isPublic()) {
                 continue;
             }
             $methodName = $method->name->toString();
@@ -149,38 +154,88 @@ class AstHelper
                 continue;
             }
             $stmts = $method->stmts;
-            if (! $stmts) {
+            if (!$stmts) {
                 continue;
             }
             foreach ($stmts as $stmt) {
-                if ($stmt instanceof Return_ && $stmt->expr instanceof MethodCall) {
-                    $call = $stmt->expr;
-                    while ($call instanceof MethodCall && ! ($call->var instanceof Variable && $call->var->name === 'this')) {
-                        $call = $call->var;
-                    }
-
-                    if (! ($call instanceof MethodCall && $call->var instanceof Variable && $call->var->name === 'this')) {
-                        continue;
-                    }
-
-                    $relationType = $call->name instanceof Identifier ? $call->name->toString() : null;
-                    if (! $relationType || ! in_array($relationType, ['belongsTo', 'hasOne', 'hasMany', 'belongsToMany', 'morphTo', 'morphOne', 'morphMany', 'morphToMany', 'hasManyThrough'], true)) {
-                        continue;
-                    }
-
-                    $args = $call->args;
-                    if (empty($args) || ! $args[0] instanceof Arg) {
-                        continue;
-                    }
-
-                    $firstArg = $args[0]->value;
-                    if (! ($firstArg instanceof ClassConstFetch && $firstArg->class instanceof Name)) {
-                        continue;
-                    }
-
-                    $className = $this->resolveClassName($firstArg->class->toString(), $ast, $namespace);
-                    $relationships[$methodName] = ['type' => $relationType, 'class' => $className];
+                if (
+                    !(
+                        $stmt instanceof Return_
+                        && $stmt->expr instanceof MethodCall
+                    )
+                ) {
+                    continue;
                 }
+
+                $call = $stmt->expr;
+                while (
+                    $call instanceof MethodCall
+                    && !(
+                        $call->var instanceof Variable
+                        && $call->var->name === 'this'
+                    )
+                ) {
+                    $call = $call->var;
+                }
+
+                if (
+                    !(
+                        $call instanceof MethodCall
+                        && $call->var instanceof Variable
+                        && $call->var->name === 'this'
+                    )
+                ) {
+                    continue;
+                }
+
+                $relationType = $call->name instanceof Identifier
+                    ? $call->name->toString()
+                    : null;
+                if (
+                    !$relationType
+                    || !in_array(
+                        $relationType,
+                        [
+                            'belongsTo',
+                            'hasOne',
+                            'hasMany',
+                            'belongsToMany',
+                            'morphTo',
+                            'morphOne',
+                            'morphMany',
+                            'morphToMany',
+                            'hasManyThrough',
+                        ],
+                        true,
+                    )
+                ) {
+                    continue;
+                }
+
+                $args = $call->args;
+                if (empty($args) || !$args[0] instanceof Arg) {
+                    continue;
+                }
+
+                $firstArg = $args[0]->value;
+                if (
+                    !(
+                        $firstArg instanceof ClassConstFetch
+                        && $firstArg->class instanceof Name
+                    )
+                ) {
+                    continue;
+                }
+
+                $className = $this->resolveClassName(
+                    $firstArg->class->toString(),
+                    $ast,
+                    $namespace,
+                );
+                $relationships[$methodName] = [
+                    'type' => $relationType,
+                    'class' => $className,
+                ];
             }
         }
 

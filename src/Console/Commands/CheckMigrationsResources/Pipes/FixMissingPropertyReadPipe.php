@@ -19,8 +19,10 @@ class FixMissingPropertyReadPipe extends BaseFixerPipe
         $this->docBlockHelper = new DocBlockHelper;
     }
 
-    public function __invoke(AnalysisResultDto $dto, \Closure $next): AnalysisResultDto
-    {
+    public function __invoke(
+        AnalysisResultDto $dto,
+        \Closure $next,
+    ): AnalysisResultDto {
         if (empty($dto->report)) {
             return $next($dto);
         }
@@ -29,8 +31,10 @@ class FixMissingPropertyReadPipe extends BaseFixerPipe
         $modelFilePaths = $dto->modelFilePaths;
 
         foreach ($addPropertyRead as $table => $fieldTableDto) {
-            if (! isset($modelFilePaths[$table])) {
-                $this->command->warn("Model file for table {$table} not found.");
+            if (!array_key_exists($table, $modelFilePaths)) {
+                $this->command->warn(
+                    "Model file for table {$table} not found.",
+                );
 
                 continue;
             }
@@ -54,12 +58,15 @@ class FixMissingPropertyReadPipe extends BaseFixerPipe
                     $rel = $fieldDto->name;
                     // Find the corresponding relationship data
                     $relData = null;
-                    $relationshipTable = $dto->resources[$table]->modelRelationships ?? new RelationshipFieldTable;
+                    $relationshipTable =
+                        $dto->resources[$table]->modelRelationships ?? new RelationshipFieldTable;
                     foreach ($relationshipTable as $relName => $data) {
-                        if ($relName === $rel) {
-                            $relData = $data;
-                            break;
+                        if ($relName !== $rel) {
+                            continue;
                         }
+
+                        $relData = $data;
+                        break;
                     }
                     if ($relData === null) {
                         continue;
@@ -70,10 +77,24 @@ class FixMissingPropertyReadPipe extends BaseFixerPipe
                     $type = $relData->type;
                     $className = $relData->model;
 
-                    if (str_starts_with($type, 'BelongsTo') || str_starts_with($type, 'HasOne') || str_starts_with($type, 'MorphTo') || str_starts_with($type, 'MorphOne')) {
+                    if (
+                        str_starts_with($type, 'BelongsTo')
+                        || str_starts_with($type, 'HasOne')
+                        || str_starts_with($type, 'MorphTo')
+                        || str_starts_with($type, 'MorphOne')
+                    ) {
                         $phpType = '?\\' . $className;
-                    } elseif (str_starts_with($type, 'HasMany') || str_starts_with($type, 'BelongsToMany') || str_starts_with($type, 'MorphMany') || str_starts_with($type, 'MorphToMany') || str_starts_with($type, 'HasManyThrough')) {
-                        $phpType = '\Illuminate\Database\Eloquent\Collection<int, \\' . $className . '>';
+                    } elseif (
+                        str_starts_with($type, 'HasMany')
+                        || str_starts_with($type, 'BelongsToMany')
+                        || str_starts_with($type, 'MorphMany')
+                        || str_starts_with($type, 'MorphToMany')
+                        || str_starts_with($type, 'HasManyThrough')
+                    ) {
+                        $phpType =
+                            '\Illuminate\Database\Eloquent\Collection<int, \\'
+                            . $className
+                            . '>';
                     } else {
                         $phpType = 'mixed';
                     }
@@ -81,13 +102,24 @@ class FixMissingPropertyReadPipe extends BaseFixerPipe
                     $newProperties[] = " * @property-read {$phpType} \${$rel}";
                 }
 
-                $code = $this->docBlockHelper->addPropertiesToDocBlock($parsed['class'], $code, $newProperties, true);
+                $code = $this->docBlockHelper->addPropertiesToDocBlock(
+                    $parsed['class'],
+                    $code,
+                    $newProperties,
+                    true,
+                );
 
                 if ($this->writeFile($filePath, $code)) {
-                    $this->command->info('Added ' . $fieldTableDto->count() . " missing @property-read annotations to {$filePath}");
+                    $this->command->info(
+                        'Added '
+                        . $fieldTableDto->count()
+                        . " missing @property-read annotations to {$filePath}",
+                    );
                 }
             } catch (\Throwable $e) {
-                $this->command->error("Failed to fix {$filePath}: " . $e->getMessage());
+                $this->command->error(
+                    "Failed to fix {$filePath}: " . $e->getMessage(),
+                );
             }
         }
 

@@ -36,16 +36,33 @@ class ParseModelsPipe
         $this->astHelper = new AstHelper;
     }
 
-    public function __invoke(AnalysisResultDto $dto, \Closure $next): AnalysisResultDto
-    {
-        $modelsDir = base_path() . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'Models';
+    public function __invoke(
+        AnalysisResultDto $dto,
+        \Closure $next,
+    ): AnalysisResultDto {
+        $modelsDir =
+            base_path()
+            . DIRECTORY_SEPARATOR
+            . 'app'
+            . DIRECTORY_SEPARATOR
+            . 'Models';
         $modelFiles = [];
         if (is_dir($modelsDir)) {
-            $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($modelsDir));
+            $it = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($modelsDir),
+            );
             foreach ($it as $f) {
-                if ($f instanceof \SplFileInfo && $f->isFile() && $f->getExtension() === 'php') {
-                    $modelFiles[] = $f->getPathname();
+                if (
+                    !(
+                        $f instanceof \SplFileInfo
+                        && $f->isFile()
+                        && $f->getExtension() === 'php'
+                    )
+                ) {
+                    continue;
                 }
+
+                $modelFiles[] = $f->getPathname();
             }
         }
 
@@ -60,16 +77,18 @@ class ParseModelsPipe
                 $mf = (string) $mf;
                 $ast = $this->astHelper->parseFile($mf);
                 if ($ast === null) {
-                    throw new \RuntimeException("Failed to parse model file: {$mf}");
+                    throw new \RuntimeException(
+                        "Failed to parse model file: {$mf}",
+                    );
                 }
 
                 $className = $this->astHelper->getClassName($ast);
-                if (! $className) {
+                if (!$className) {
                     continue;
                 }
 
                 $model = new $className;
-                if (! $model instanceof Model) {
+                if (!$model instanceof Model) {
                     continue;
                 }
 
@@ -84,7 +103,7 @@ class ParseModelsPipe
                     );
                 }
                 foreach ($model->getHidden() as $fieldName) {
-                    if (isset($fields[$fieldName])) {
+                    if (array_key_exists($fieldName, $fields)) {
                         $fields[$fieldName]->hidden = true;
                     } else {
                         $fields[$fieldName] = new ModelFieldDto(
@@ -94,7 +113,7 @@ class ParseModelsPipe
                     }
                 }
                 foreach ($model->getCasts() as $fieldName => $castType) {
-                    if (isset($fields[$fieldName])) {
+                    if (array_key_exists($fieldName, $fields)) {
                         $fields[$fieldName]->cast = $castType;
                     } else {
                         $fields[$fieldName] = new ModelFieldDto(
@@ -109,8 +128,11 @@ class ParseModelsPipe
 
                 // Extract PHPDoc properties
                 /** @var array<Class_> $classes */
-                $classes = $this->astHelper->finder()->findInstanceOf($ast, Class_::class);
-                if (! empty($classes)) {
+                $classes = $this->astHelper->finder()->findInstanceOf(
+                    $ast,
+                    Class_::class,
+                );
+                if (!empty($classes)) {
                     $class = $classes[0];
                     $doc = $class->getDocComment();
                     if ($doc) {
@@ -119,12 +141,16 @@ class ParseModelsPipe
                             $ast,
                             $namespace,
                         );
-                        $phpdocAttributes[$tableName] = $extracted['properties'];
+                        $phpdocAttributes[$tableName] =
+                            $extracted['properties'];
                         $phpdocRead[$tableName] = $extracted['read'];
                     }
                 }
 
-                $modelRelationships[$tableName] = $this->extractRelationships($ast, $namespace);
+                $modelRelationships[$tableName] = $this->extractRelationships(
+                    $ast,
+                    $namespace,
+                );
             } catch (\Throwable $e) {
                 Log::warning('Failed to analyze model file for check:migrations-resources.', [
                     'file' => $mf,
@@ -165,8 +191,11 @@ class ParseModelsPipe
      * @param  array<Node>  $ast
      * @return array{properties: PhpDocFieldTable, read: PhpDocFieldTable}
      */
-    private function extractPhpDocProperties(string $docComment, array $ast, string $namespace): array
-    {
+    private function extractPhpDocProperties(
+        string $docComment,
+        array $ast,
+        string $namespace,
+    ): array {
         $properties = [];
         $read = [];
         $lines = explode("\n", $docComment);
@@ -179,13 +208,24 @@ class ParseModelsPipe
 
             [$propType, $varType, $name] = $parsed;
             [$varType, $nullable] = $this->getTypeFromComment($varType);
-            [$varType, $arrayType, $keyType] = $this->determineArrayInfo($varType);
+            [$varType, $arrayType, $keyType] =
+                $this->determineArrayInfo($varType);
 
             if ($this->isProbablyClassType($varType)) {
-                $varType = $this->astHelper->resolveClassName($varType, $ast, $namespace);
+                $varType = $this->astHelper->resolveClassName(
+                    $varType,
+                    $ast,
+                    $namespace,
+                );
             }
 
-            $fieldDto = new PhpDocFieldDto($name, $varType, $nullable, $arrayType, $keyType);
+            $fieldDto = new PhpDocFieldDto(
+                $name,
+                $varType,
+                $nullable,
+                $arrayType,
+                $keyType,
+            );
 
             if ($propType === 'property-read') {
                 $read[$name] = $fieldDto;
@@ -226,14 +266,20 @@ class ParseModelsPipe
     /**
      * Make the return type fully qualified by replacing the model class with its full name.
      */
-    private function makeReturnTypeFullQualified(string $returnType, string $fullClassName): string
-    {
+    private function makeReturnTypeFullQualified(
+        string $returnType,
+        string $fullClassName,
+    ): string {
         // Extract the short class name from the full one
         $shortClassName = basename(str_replace('\\', '/', $fullClassName));
 
         // Replace the short class name in the return type with the full one
         // Assuming it's in the form RelationType<ShortClass,...>
-        if (preg_match('/^([A-Z][a-zA-Z]+)<([^,>]+)(.*)$/', $returnType, $matches)) {
+        if (preg_match(
+            '/^([A-Z][a-zA-Z]+)<([^,>]+)(.*)$/',
+            $returnType,
+            $matches,
+        )) {
             if ($matches[2] === $shortClassName) {
                 return $matches[1] . '<' . $fullClassName . $matches[3];
             }
@@ -245,20 +291,25 @@ class ParseModelsPipe
     /**
      * @param  array<Node>  $ast
      */
-    private function extractRelationships(array $ast, string $namespace): RelationshipFieldTable
-    {
+    private function extractRelationships(
+        array $ast,
+        string $namespace,
+    ): RelationshipFieldTable {
         $relationships = [];
-        $methods = $this->astHelper->finder()->findInstanceOf($ast, ClassMethod::class);
+        $methods = $this->astHelper->finder()->findInstanceOf(
+            $ast,
+            ClassMethod::class,
+        );
         foreach ($methods as $method) {
-            if (! $method->isPublic()) {
+            if (!$method->isPublic()) {
                 continue;
             }
             $methodName = $method->name->toString();
-            if (in_array($methodName, ['__construct', '__destruct'])) {
+            if (in_array($methodName, ['__construct', '__destruct'], true)) {
                 continue;
             }
             $stmts = $method->stmts;
-            if (! $stmts) {
+            if (!$stmts) {
                 continue;
             }
 
@@ -270,30 +321,73 @@ class ParseModelsPipe
             }
 
             foreach ($stmts as $stmt) {
-                if ($stmt instanceof Return_ && $stmt->expr instanceof MethodCall) {
-                    $call = $stmt->expr;
-                    // Find the root relation call on $this
-                    while ($call instanceof MethodCall && ! ($call->var instanceof Variable && $call->var->name === 'this')) {
-                        $call = $call->var;
-                    }
-                    if ($call instanceof MethodCall && $call->var instanceof Variable && $call->var->name === 'this') {
-                        $relationType = $call->name instanceof Identifier ? $call->name->toString() : null;
-                        if ($relationType && in_array($relationType, ['belongsTo', 'hasOne', 'hasMany', 'belongsToMany', 'morphTo', 'morphOne', 'morphMany', 'morphToMany', 'hasManyThrough'])) {
-                            $args = $call->args;
-                            if (! empty($args) && $args[0] instanceof Arg) {
-                                $className = $this->resolveRelatedClassFromArg($args[0], $ast, $namespace);
+                if (
+                    !(
+                        $stmt instanceof Return_
+                        && $stmt->expr instanceof MethodCall
+                    )
+                ) {
+                    continue;
+                }
 
-                                if ($className === null) {
-                                    continue;
-                                }
+                $call = $stmt->expr;
+                // Find the root relation call on $this
+                while (
+                    $call instanceof MethodCall
+                    && !(
+                        $call->var instanceof Variable
+                        && $call->var->name === 'this'
+                    )
+                ) {
+                    $call = $call->var;
+                }
+                if (
+                    $call instanceof MethodCall
+                    && $call->var instanceof Variable
+                    && $call->var->name === 'this'
+                ) {
+                    $relationType = $call->name instanceof Identifier
+                        ? $call->name->toString()
+                        : null;
+                    if (
+                        $relationType
+                        && in_array($relationType, [
+                            'belongsTo',
+                            'hasOne',
+                            'hasMany',
+                            'belongsToMany',
+                            'morphTo',
+                            'morphOne',
+                            'morphMany',
+                            'morphToMany',
+                            'hasManyThrough',
+                        ], true)
+                    ) {
+                        $args = $call->args;
+                        if (!empty($args) && $args[0] instanceof Arg) {
+                            $className = $this->resolveRelatedClassFromArg(
+                                $args[0],
+                                $ast,
+                                $namespace,
+                            );
 
-                                $fullReturnType = $this->makeReturnTypeFullQualified($returnType, $className);
-                                $relationships[$methodName] = new RelationshipFieldDto(
+                            if ($className === null) {
+                                continue;
+                            }
+
+                            $fullReturnType = $this->makeReturnTypeFullQualified(
+                                $returnType,
+                                $className,
+                            );
+                            $relationships[$methodName] =
+                                new RelationshipFieldDto(
                                     $methodName,
-                                    $this->formatRelationShortName($relationType, $fullReturnType),
+                                    $this->formatRelationShortName(
+                                        $relationType,
+                                        $fullReturnType,
+                                    ),
                                     $className,
                                 );
-                            }
                         }
                     }
                 }
@@ -314,7 +408,11 @@ class ParseModelsPipe
         }
         $lineProcessed = trim($lineProcessed);
 
-        if (preg_match('/@(property(?:-read|-write)?)\s+(.+?)\s+\$([a-zA-Z0-9_]+)/', $lineProcessed, $matches)) {
+        if (preg_match(
+            '/@(property(?:-read|-write)?)\s+(.+?)\s+\$([a-zA-Z0-9_]+)/',
+            $lineProcessed,
+            $matches,
+        )) {
             return [$matches[1], $matches[2], $matches[3]];
         }
 
@@ -324,27 +422,44 @@ class ParseModelsPipe
     /**
      * @param  array<Node>  $ast
      */
-    private function resolveRelatedClassFromArg(Arg $arg, array $ast, string $namespace): string|null
-    {
+    private function resolveRelatedClassFromArg(
+        Arg $arg,
+        array $ast,
+        string $namespace,
+    ): string|null {
         $value = $arg->value;
 
-        if ($value instanceof ClassConstFetch && $value->name instanceof Identifier && $value->name->toString() === 'class') {
+        if (
+            $value instanceof ClassConstFetch
+            && $value->name instanceof Identifier
+            && $value->name->toString() === 'class'
+        ) {
             if ($value->class instanceof Name) {
                 $className = $value->class->toString();
 
-                return $this->astHelper->resolveClassName($className, $ast, $namespace);
+                return $this->astHelper->resolveClassName(
+                    $className,
+                    $ast,
+                    $namespace,
+                );
             }
         }
 
         if ($value instanceof String_) {
-            return $this->astHelper->resolveClassName($value->value, $ast, $namespace);
+            return $this->astHelper->resolveClassName(
+                $value->value,
+                $ast,
+                $namespace,
+            );
         }
 
         return null;
     }
 
-    private function formatRelationShortName(string $relationType, string $phpDocReturnType): string
-    {
+    private function formatRelationShortName(
+        string $relationType,
+        string $phpDocReturnType,
+    ): string {
         if (preg_match('/^([A-Za-z0-9_]+)</', $phpDocReturnType, $matches)) {
             return $matches[1];
         }
@@ -370,10 +485,11 @@ class ParseModelsPipe
      */
     private function getTypeFromComment(string $type): array
     {
-        $nullable = str_ends_with($type, '|null') ||
-            str_ends_with($type, 'null|') ||
-            $type === 'null' ||
-            str_contains($type, '?');
+        $nullable =
+            str_ends_with($type, '|null')
+            || str_ends_with($type, 'null|')
+            || $type === 'null'
+            || str_contains($type, '?');
 
         $type = str_replace(['|null', 'null|', '?'], '', $type);
 
@@ -391,7 +507,9 @@ class ParseModelsPipe
         $keyType = null;
 
         // Collection<Type>
-        if (str_starts_with($type, 'Collection<') && str_ends_with($type, '>')) {
+        if (
+            str_starts_with($type, 'Collection<') && str_ends_with($type, '>')
+        ) {
             $arrayType = 'Collection';
             $inner = substr($type, 11, -1);
             if (str_contains($inner, ',')) {
@@ -431,7 +549,32 @@ class ParseModelsPipe
         $typeLower = strtolower($type);
 
         $builtIns = [
-            'string', 'bool', 'boolean', 'int', 'integer', 'float', 'double', 'mixed', 'object', 'array', 'callable', 'iterable', 'void', 'null', 'resource', 'true', 'false', 'self', 'static', '$this', 'mixed[]', 'string[]', 'int[]', 'bool[]', 'array[]', 'object[]',
+            'string',
+            'bool',
+            'boolean',
+            'int',
+            'integer',
+            'float',
+            'double',
+            'mixed',
+            'object',
+            'array',
+            'callable',
+            'iterable',
+            'void',
+            'null',
+            'resource',
+            'true',
+            'false',
+            'self',
+            'static',
+            '$this',
+            'mixed[]',
+            'string[]',
+            'int[]',
+            'bool[]',
+            'array[]',
+            'object[]',
         ];
 
         if (in_array($typeLower, $builtIns, true)) {

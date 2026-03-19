@@ -9,8 +9,10 @@ use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources
 
 class FixWrongRelationshipNamesPipe extends BaseFixerPipe
 {
-    public function __invoke(AnalysisResultDto $dto, \Closure $next): AnalysisResultDto
-    {
+    public function __invoke(
+        AnalysisResultDto $dto,
+        \Closure $next,
+    ): AnalysisResultDto {
         if (empty($dto->report)) {
             return $next($dto);
         }
@@ -18,8 +20,10 @@ class FixWrongRelationshipNamesPipe extends BaseFixerPipe
         $wrongRels = $dto->report->shouldBeCamelCaseRelationship;
         $modelFilePaths = $dto->modelFilePaths;
         foreach ($wrongRels as $table => $fieldTableDto) {
-            if (! isset($modelFilePaths[$table])) {
-                $this->command->warn("Model file for table {$table} not found.");
+            if (!array_key_exists($table, $modelFilePaths)) {
+                $this->command->warn(
+                    "Model file for table {$table} not found.",
+                );
 
                 continue;
             }
@@ -38,7 +42,13 @@ class FixWrongRelationshipNamesPipe extends BaseFixerPipe
                     $newRel = str($wrongRel)->camel()->toString();
                     // Simple string replacement for method name
                     // This is risky as it might replace other occurrences, but for a fix, it's a start
-                    $result = preg_replace('/\bfunction\s+' . preg_quote($wrongRel, '/') . '\s*\(/', 'function ' . $newRel . '(', $code);
+                    $result = preg_replace(
+                        '/\bfunction\s+'
+                        . preg_quote($wrongRel, '/')
+                        . '\s*\(/',
+                        'function ' . $newRel . '(',
+                        $code,
+                    );
                     if ($result !== null) {
                         $code = $result;
                         $changed = true;
@@ -46,10 +56,16 @@ class FixWrongRelationshipNamesPipe extends BaseFixerPipe
                 }
 
                 if ($changed && $this->writeFile($filePath, $code)) {
-                    $this->command->info('Fixed ' . $fieldTableDto->count() . " wrong relationship names in {$filePath}");
+                    $this->command->info(
+                        'Fixed '
+                        . $fieldTableDto->count()
+                        . " wrong relationship names in {$filePath}",
+                    );
                 }
             } catch (\Throwable $e) {
-                $this->command->error("Failed to fix {$filePath}: " . $e->getMessage());
+                $this->command->error(
+                    "Failed to fix {$filePath}: " . $e->getMessage(),
+                );
             }
         }
 

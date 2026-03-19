@@ -13,8 +13,9 @@ abstract class BaseFixerPipe
 {
     protected AstHelper $astHelper;
 
-    public function __construct(protected Command $command)
-    {
+    public function __construct(
+        protected Command $command,
+    ) {
         $this->astHelper = new AstHelper;
     }
 

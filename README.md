@@ -32,7 +32,7 @@ php artisan check:migrations-resources
 
 ## Features
 
-- Parses migrations to extract table schemas
+- Parses migrations to extract table schemas or reads the DB schema if db is available
 - Analyzes Filament resource forms
 - Checks model properties and relationships
 - Generates reports on inconsistencies
