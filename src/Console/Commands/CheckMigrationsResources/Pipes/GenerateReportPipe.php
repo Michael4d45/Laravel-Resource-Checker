@@ -10,6 +10,8 @@ use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\FieldTable;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\ReportDto;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\WrongRelationshipNameDto;
+use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\WrongRelationshipPhpdocReadDto;
+use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\WrongRelationshipPhpdocReadTable;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\WrongTypeDto;
 
 class GenerateReportPipe
@@ -77,7 +79,7 @@ class GenerateReportPipe
             addFieldsToModelDocs: $this->addFieldsToModelDocs($dto),
             removeFieldsFromModelDocs: $this->removeFieldsFromModelDocs($dto),
             wrongModelDocTypes: $this->wrongModelDocTypes($dto),
-            shouldBeCamelCasePhpdocProperty: $this->shouldBeCamelCasePhpdocProperty(
+            wrongRelationshipPhpdocReadTypes: $this->wrongRelationshipPhpdocReadTypes(
                 $dto,
             ),
             shouldBeCamelCaseRelationship: $this->shouldBeCamelCaseRelationship(
@@ -502,16 +504,16 @@ class GenerateReportPipe
     }
 
     /**
-     * @return array<string, FieldTable>
+     * @return array<string, WrongRelationshipPhpdocReadTable>
      */
-    private function shouldBeCamelCasePhpdocProperty(AnalysisResultDto $dto): array
+    private function wrongRelationshipPhpdocReadTypes(AnalysisResultDto $dto): array
     {
         $result = [];
         foreach ($dto->resources as $table => $resourceReport) {
             if (in_array($table, $this->ignoreForPhpDoc, true)) {
                 continue;
             }
-            $wrong = new FieldTable;
+            $wrong = new WrongRelationshipPhpdocReadTable;
             foreach ($resourceReport->phpdocReadFields as $fieldName => $phpDocDto) {
                 if (!$resourceReport->modelRelationships->has($fieldName)) {
                     continue;
@@ -532,28 +534,37 @@ class GenerateReportPipe
                     $phpDocDto->type,
                     $relDto->model,
                 );
-                $isCollectionRelationship = $this->relationshipExpectsCollection($relDto->type);
-                $rawTypeLooksLikeCollection = $this->rawPhpDocTypeIsCollection($phpDocDto->type);
-                $hasCollectionPhpDocType =
-                    in_array(
-                        $phpDocDto->arrayType,
-                        ['Collection', 'array'],
-                        true,
-                    ) || $rawTypeLooksLikeCollection;
-
-                if (
-                    !$matchesModel
-                    || $isCollectionRelationship && !$hasCollectionPhpDocType
-                ) {
-                    $wrong->put(
-                        $fieldName,
-                        new FieldDto(
-                            $fieldName,
-                            $phpDocDto->type,
-                            $phpDocDto->nullable,
-                        ),
-                    );
+                if ($matchesModel) {
+                    continue;
                 }
+
+                $isCollectionRelationship = $this->relationshipExpectsCollection(
+                    $relDto->type,
+                );
+
+                $relatedFqcn =
+                    '\\'.$this->normalizeClassLikePhpDoc($relDto->model);
+                $suggested = $this->suggestedRelationshipPropertyReadType(
+                    $isCollectionRelationship,
+                    $relDto->model,
+                );
+
+                $wrong->put(
+                    $fieldName,
+                    new WrongRelationshipPhpdocReadDto(
+                        relationshipName: $fieldName,
+                        relationshipType: $relDto->type,
+                        relatedModel: $relDto->model,
+                        phpdocType: $phpDocDto->type,
+                        nullable: $phpDocDto->nullable,
+                        issueCodes: ['type_does_not_match_related_model'],
+                        summary: $this->relationshipPhpdocIssueSummary(
+                            $relDto->type,
+                            $relatedFqcn,
+                        ),
+                        suggestedPhpdocType: $suggested,
+                    ),
+                );
             }
             if ($wrong->isNotEmpty()) {
                 $result[$table] = $wrong;
@@ -561,6 +572,32 @@ class GenerateReportPipe
         }
 
         return $result;
+    }
+
+    private function normalizeClassLikePhpDoc(string $fqcn): string
+    {
+        return ltrim(trim($fqcn), '\\');
+    }
+
+    private function suggestedRelationshipPropertyReadType(
+        bool $expectsCollection,
+        string $relatedModelFqcn,
+    ): string {
+        $inner = '\\'.$this->normalizeClassLikePhpDoc($relatedModelFqcn);
+        if ($expectsCollection) {
+            return '\\Illuminate\\Database\\Eloquent\\Collection<int, '.$inner.'>';
+        }
+
+        return $inner;
+    }
+
+    private function relationshipPhpdocIssueSummary(
+        string $relationshipType,
+        string $relatedFqcnWithLeadingSlash,
+    ): string {
+        return 'The type named in @property-read does not match the related model '
+            .$relatedFqcnWithLeadingSlash
+            .' inferred from the '.$relationshipType.' relationship.';
     }
 
     private function relationshipPhpDocTypeMatchesModel(
@@ -621,14 +658,6 @@ class GenerateReportPipe
         }
 
         return $normalizedPhpDocType;
-    }
-
-    private function rawPhpDocTypeIsCollection(string $phpDocType): bool
-    {
-        return (
-            preg_match('/^(Collection|array)\s*</i', trim($phpDocType)) === 1
-            || str_ends_with(trim($phpDocType), '[]')
-        );
     }
 
     private function relationshipExpectsCollection(string $relationshipType): bool

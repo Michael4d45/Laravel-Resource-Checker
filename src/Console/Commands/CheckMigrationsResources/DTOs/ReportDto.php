@@ -24,7 +24,7 @@ class ReportDto implements Arrayable
      * @param  array<string, FieldTable>  $addFieldsToModelDocs
      * @param  array<string, FieldTable>  $removeFieldsFromModelDocs
      * @param  array<string, array<string, WrongTypeDto>>  $wrongModelDocTypes
-     * @param  array<string, FieldTable>  $shouldBeCamelCasePhpdocProperty
+     * @param  array<string, WrongRelationshipPhpdocReadTable>  $wrongRelationshipPhpdocReadTypes Relationship @property-read inner type does not match the related model (singular item type is accepted for plural relationships)
      * @param  array<string, array<string, WrongRelationshipNameDto>>  $shouldBeCamelCaseRelationship
      * @param  array<string, FieldTable>  $addPropertyRead
      * @param  array<string, array<string, array{relationship_type: string, has_phpdoc_read: bool, phpdoc_type: string|null, nullable: bool|null}>>  $morphToRelationships
@@ -42,7 +42,7 @@ class ReportDto implements Arrayable
         public array $addFieldsToModelDocs = [],
         public array $removeFieldsFromModelDocs = [],
         public array $wrongModelDocTypes = [],
-        public array $shouldBeCamelCasePhpdocProperty = [],
+        public array $wrongRelationshipPhpdocReadTypes = [],
         public array $shouldBeCamelCaseRelationship = [],
         public array $addPropertyRead = [],
         public array $morphToRelationships = [],

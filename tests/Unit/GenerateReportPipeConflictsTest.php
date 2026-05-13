@@ -13,6 +13,7 @@ use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\RelationshipFieldDto;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\RelationshipFieldTable;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\ResourceReportDto;
+use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\DTOs\WrongRelationshipPhpdocReadDto;
 use Michael4d45\LaravelResourceChecker\Console\Commands\CheckMigrationsResources\Pipes\GenerateReportPipe;
 
 test('generate report includes model evidence conflicts', function (): void {
@@ -139,7 +140,7 @@ test('generate report does not flag relationship phpdoc when class names match s
     $pipe = new GenerateReportPipe;
     $result = $pipe($dto, fn (AnalysisResultDto $nextDto) => $nextDto);
 
-    expect($result->report->shouldBeCamelCasePhpdocProperty)->toBe([]);
+    expect($result->report->wrongRelationshipPhpdocReadTypes)->toBe([]);
 });
 
 test('generate report does not flag raw collection generic relationship phpdoc type', function (): void {
@@ -170,7 +171,7 @@ test('generate report does not flag raw collection generic relationship phpdoc t
     $pipe = new GenerateReportPipe;
     $result = $pipe($dto, fn (AnalysisResultDto $nextDto) => $nextDto);
 
-    expect($result->report->shouldBeCamelCasePhpdocProperty)->toBe([]);
+    expect($result->report->wrongRelationshipPhpdocReadTypes)->toBe([]);
 });
 
 test('generate report does not flag decimal and encrypted casts as model evidence conflicts when phpdoc matches runtime type', function (): void {
@@ -234,7 +235,7 @@ test('generate report does not flag morphTo relationship with generic model phpd
     $pipe = new GenerateReportPipe;
     $result = $pipe($dto, fn (AnalysisResultDto $nextDto) => $nextDto);
 
-    expect($result->report->shouldBeCamelCasePhpdocProperty)->toBe([]);
+    expect($result->report->wrongRelationshipPhpdocReadTypes)->toBe([]);
 });
 
 test('generate report exposes morphTo relationships in dedicated section', function (): void {
@@ -347,4 +348,108 @@ test('generate report requests property-read for undocumented accessor-backed fi
     expect($result->report->addPropertyRead['gps_archives'])->toHaveKey('batch');
     expect($result->report->addPropertyRead['gps_archives']['geohashes_for_display']->nullable)->toBeTrue();
     expect($result->report->addPropertyRead['gps_archives']['batch']->type)->toBe('Protos\\Gps\\GpsPointBatch');
+});
+
+test('generate report does not flag singular phpdoc type that matches related model on plural relationship', function (): void {
+    $resource = new ResourceReportDto(
+        phpdocReadFields: new PhpDocFieldTable([
+            'notifications' => new PhpDocFieldDto(
+                name: 'notifications',
+                type: 'Illuminate\\Notifications\\DatabaseNotification',
+                nullable: false,
+            ),
+        ]),
+        modelRelationships: new RelationshipFieldTable([
+            'notifications' => new RelationshipFieldDto(
+                name: 'notifications',
+                type: 'MorphMany',
+                model: 'Illuminate\\Notifications\\DatabaseNotification',
+            ),
+        ]),
+    );
+
+    $dto = new AnalysisResultDto(
+        report: new ReportDto,
+        resources: [
+            'users' => $resource,
+        ],
+    );
+
+    $pipe = new GenerateReportPipe;
+    $result = $pipe($dto, fn (AnalysisResultDto $nextDto) => $nextDto);
+
+    expect($result->report->wrongRelationshipPhpdocReadTypes)->toBe([]);
+});
+
+test('generate report flags relationship phpdoc when inner type does not match related model', function (): void {
+    $resource = new ResourceReportDto(
+        phpdocReadFields: new PhpDocFieldTable([
+            'devices' => new PhpDocFieldDto(
+                name: 'devices',
+                type: 'string',
+                nullable: false,
+            ),
+        ]),
+        modelRelationships: new RelationshipFieldTable([
+            'devices' => new RelationshipFieldDto(
+                name: 'devices',
+                type: 'HasMany',
+                model: 'App\\Models\\Device',
+            ),
+        ]),
+    );
+
+    $dto = new AnalysisResultDto(
+        report: new ReportDto,
+        resources: [
+            'activities' => $resource,
+        ],
+    );
+
+    $pipe = new GenerateReportPipe;
+    $result = $pipe($dto, fn (AnalysisResultDto $nextDto) => $nextDto);
+
+    expect($result->report->wrongRelationshipPhpdocReadTypes)->toHaveKey(
+        'activities',
+    );
+    $entry = $result->report->wrongRelationshipPhpdocReadTypes['activities']->get(
+        'devices',
+    );
+    expect($entry)->toBeInstanceOf(WrongRelationshipPhpdocReadDto::class);
+    expect($entry->issueCodes)->toBe(['type_does_not_match_related_model']);
+    expect($entry->suggestedPhpdocType)->toBe(
+        '\\Illuminate\\Database\\Eloquent\\Collection<int, \\App\\Models\\Device>',
+    );
+    expect($entry->summary)->toContain('does not match');
+});
+
+test('generate report does not flag shorthand class name matching related model on plural relationship', function (): void {
+    $resource = new ResourceReportDto(
+        phpdocReadFields: new PhpDocFieldTable([
+            'devices' => new PhpDocFieldDto(
+                name: 'devices',
+                type: '\\Device',
+                nullable: false,
+            ),
+        ]),
+        modelRelationships: new RelationshipFieldTable([
+            'devices' => new RelationshipFieldDto(
+                name: 'devices',
+                type: 'HasMany',
+                model: 'App\\Models\\Device',
+            ),
+        ]),
+    );
+
+    $dto = new AnalysisResultDto(
+        report: new ReportDto,
+        resources: [
+            'activities' => $resource,
+        ],
+    );
+
+    $pipe = new GenerateReportPipe;
+    $result = $pipe($dto, fn (AnalysisResultDto $nextDto) => $nextDto);
+
+    expect($result->report->wrongRelationshipPhpdocReadTypes)->toBe([]);
 });
