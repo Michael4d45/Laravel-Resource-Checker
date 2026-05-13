@@ -538,33 +538,28 @@ class GenerateReportPipe
                     continue;
                 }
 
-                $isCollectionRelationship = $this->relationshipExpectsCollection(
-                    $relDto->type,
-                );
+                $isCollectionRelationship = $this->relationshipExpectsCollection($relDto->type);
 
                 $relatedFqcn =
-                    '\\'.$this->normalizeClassLikePhpDoc($relDto->model);
+                    '\\' . $this->normalizeClassLikePhpDoc($relDto->model);
                 $suggested = $this->suggestedRelationshipPropertyReadType(
                     $isCollectionRelationship,
                     $relDto->model,
                 );
 
-                $wrong->put(
-                    $fieldName,
-                    new WrongRelationshipPhpdocReadDto(
-                        relationshipName: $fieldName,
-                        relationshipType: $relDto->type,
-                        relatedModel: $relDto->model,
-                        phpdocType: $phpDocDto->type,
-                        nullable: $phpDocDto->nullable,
-                        issueCodes: ['type_does_not_match_related_model'],
-                        summary: $this->relationshipPhpdocIssueSummary(
-                            $relDto->type,
-                            $relatedFqcn,
-                        ),
-                        suggestedPhpdocType: $suggested,
+                $wrong->put($fieldName, new WrongRelationshipPhpdocReadDto(
+                    relationshipName: $fieldName,
+                    relationshipType: $relDto->type,
+                    relatedModel: $relDto->model,
+                    phpdocType: $phpDocDto->type,
+                    nullable: $phpDocDto->nullable,
+                    issueCodes: ['type_does_not_match_related_model'],
+                    summary: $this->relationshipPhpdocIssueSummary(
+                        $relDto->type,
+                        $relatedFqcn,
                     ),
-                );
+                    suggestedPhpdocType: $suggested,
+                ));
             }
             if ($wrong->isNotEmpty()) {
                 $result[$table] = $wrong;
@@ -583,9 +578,13 @@ class GenerateReportPipe
         bool $expectsCollection,
         string $relatedModelFqcn,
     ): string {
-        $inner = '\\'.$this->normalizeClassLikePhpDoc($relatedModelFqcn);
+        $inner = '\\' . $this->normalizeClassLikePhpDoc($relatedModelFqcn);
         if ($expectsCollection) {
-            return '\\Illuminate\\Database\\Eloquent\\Collection<int, '.$inner.'>';
+            return (
+                '\\Illuminate\\Database\\Eloquent\\Collection<int, '
+                . $inner
+                . '>'
+            );
         }
 
         return $inner;
@@ -595,9 +594,13 @@ class GenerateReportPipe
         string $relationshipType,
         string $relatedFqcnWithLeadingSlash,
     ): string {
-        return 'The type named in @property-read does not match the related model '
-            .$relatedFqcnWithLeadingSlash
-            .' inferred from the '.$relationshipType.' relationship.';
+        return (
+            'The type named in @property-read does not match the related model '
+            . $relatedFqcnWithLeadingSlash
+            . ' inferred from the '
+            . $relationshipType
+            . ' relationship.'
+        );
     }
 
     private function relationshipPhpDocTypeMatchesModel(

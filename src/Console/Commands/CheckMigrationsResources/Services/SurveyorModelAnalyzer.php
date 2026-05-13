@@ -112,13 +112,12 @@ class SurveyorModelAnalyzer
                     && $fields[$property->name]->accessor
                     && $fields[$property->name]->cast === null
                 ) {
-                    $fields[$property->name]->cast = $this->typeToString(
-                        $property->type,
-                    );
+                    $fields[$property->name]->cast = $this->typeToString($property->type);
                 }
 
                 if ($property->type instanceof SurveyorAbstractType) {
-                    $fields[$property->name]->nullable = $property->type->isNullable();
+                    $fields[$property->name]->nullable =
+                        $property->type->isNullable();
                 }
             }
         }
