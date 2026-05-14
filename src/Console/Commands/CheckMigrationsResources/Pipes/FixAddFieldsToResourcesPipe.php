@@ -83,7 +83,7 @@ class FixAddFieldsToResourcesPipe
                     continue;
                 }
 
-                $parser = (new ParserFactory)->createForHostVersion();
+                $parser = new ParserFactory()->createForHostVersion();
                 $ast = $parser->parse($code);
                 if ($ast === null) {
                     $this->command->error("Failed to parse {$formFilePath}");

@@ -30,7 +30,7 @@ class AstHelper
 
     public function __construct()
     {
-        $this->parser = (new ParserFactory)->createForHostVersion();
+        $this->parser = new ParserFactory()->createForHostVersion();
         $this->finder = new NodeFinder;
     }
 

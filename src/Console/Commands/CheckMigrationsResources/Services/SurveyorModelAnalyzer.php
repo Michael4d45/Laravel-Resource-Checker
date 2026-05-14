@@ -133,7 +133,7 @@ class SurveyorModelAnalyzer
     {
         $attributes = [];
 
-        $methods = (new \PhpParser\NodeFinder)->findInstanceOf(
+        $methods = new \PhpParser\NodeFinder()->findInstanceOf(
             $ast,
             ClassMethod::class,
         );

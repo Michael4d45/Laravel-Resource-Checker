@@ -154,6 +154,13 @@ class DocBlockTypeExtractor
             } else {
                 $type = $inner;
             }
+        } elseif (
+            str_starts_with($type, 'list<') && str_ends_with($type, '>')
+        ) {
+            // PHPStan list<T> is a sequential array; treat like array<T> for migration/cast alignment.
+            $arrayType = 'array';
+            $inner = substr($type, 5, -1);
+            $type = trim($inner);
         } elseif (str_ends_with($type, '[]')) {
             $arrayType = 'array';
             $type = substr($type, 0, -2);
